@@ -50,6 +50,10 @@ ob_start();
                                 <p class="text-[11px] text-gray-500 truncate"><?= $m['nama_file'] ?> · <?= formatBytes($m['ukuran_file']) ?></p>
                             </div>
                             <div class="flex items-center gap-1 flex-shrink-0">
+                                <a href="https://drive.google.com/uc?export=download&id=<?= $m['file_gdrive_id'] ?>"
+                                    class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Download">
+                                    <i class="fas fa-download text-xs"></i>
+                                </a>
                                 <a href="<?= $m['file_gdrive_url'] ?>" target="_blank"
                                     class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Buka file">
                                     <i class="fas fa-external-link-alt text-xs"></i>
@@ -99,6 +103,12 @@ ob_start();
                                 <p class="text-[11px] text-gray-500 truncate"><?= $t['nama_file'] ?? 'File tidak tersedia' ?></p>
                             </div>
                             <div class="flex items-center gap-1 flex-shrink-0">
+                                <?php if (isset($t['file_gdrive_id'])): ?>
+                                    <a href="https://drive.google.com/uc?export=download&id=<?= $t['file_gdrive_id'] ?>"
+                                        class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Download">
+                                        <i class="fas fa-download text-xs"></i>
+                                    </a>
+                                <?php endif; ?>
                                 <?php if (isset($t['file_gdrive_url'])): ?>
                                     <a href="<?= $t['file_gdrive_url'] ?>" target="_blank"
                                         class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Buka file">

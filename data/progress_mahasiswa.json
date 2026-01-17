@@ -78,10 +78,12 @@
     {
         "mahasiswa_id": 1,
         "mata_kuliah_id": 6,
-        "pertemuan_selesai": 0,
-        "materi_selesai": 0,
+        "pertemuan_selesai": 18,
+        "materi_selesai": 1,
         "id": 10,
-        "created_at": "2026-01-17 18:36:13"
+        "created_at": "2026-01-17 18:36:13",
+        "last_accessed_at": "2026-01-17 23:02:02",
+        "updated_at": "2026-01-17 23:02:02"
     },
     {
         "mahasiswa_id": 1,

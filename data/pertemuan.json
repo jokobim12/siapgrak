@@ -634,7 +634,9 @@
         "nomor_pertemuan": 1,
         "judul": "Pertemuan 1",
         "id": 91,
-        "created_at": "2026-01-17 18:36:13"
+        "created_at": "2026-01-17 18:36:13",
+        "folder_gdrive_id": "1rlUYonfQPL_OG4v-YVqXukWbAwhMk1dG",
+        "updated_at": "2026-01-17 23:01:41"
     },
     {
         "mata_kuliah_id": 6,
@@ -754,133 +756,5 @@
         "judul": "Pertemuan 18",
         "id": 108,
         "created_at": "2026-01-17 18:36:13"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 1,
-        "judul": "Pertemuan 1",
-        "id": 109,
-        "created_at": "2026-01-17 18:36:26",
-        "folder_gdrive_id": "1l3CGHwQAfTgT4uA6rh53Ys91VSkplk0g",
-        "updated_at": "2026-01-17 19:41:55"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 2,
-        "judul": "Pertemuan 2",
-        "id": 110,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 3,
-        "judul": "Pertemuan 3",
-        "id": 111,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 4,
-        "judul": "Pertemuan 4",
-        "id": 112,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 5,
-        "judul": "Pertemuan 5",
-        "id": 113,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 6,
-        "judul": "Pertemuan 6",
-        "id": 114,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 7,
-        "judul": "Pertemuan 7",
-        "id": 115,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 8,
-        "judul": "Pertemuan 8",
-        "id": 116,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 9,
-        "judul": "Pertemuan 9",
-        "id": 117,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 10,
-        "judul": "Pertemuan 10",
-        "id": 118,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 11,
-        "judul": "Pertemuan 11",
-        "id": 119,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 12,
-        "judul": "Pertemuan 12",
-        "id": 120,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 13,
-        "judul": "Pertemuan 13",
-        "id": 121,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 14,
-        "judul": "Pertemuan 14",
-        "id": 122,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 15,
-        "judul": "Pertemuan 15",
-        "id": 123,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 16,
-        "judul": "Pertemuan 16",
-        "id": 124,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 17,
-        "judul": "Pertemuan 17",
-        "id": 125,
-        "created_at": "2026-01-17 18:36:26"
-    },
-    {
-        "mata_kuliah_id": 7,
-        "nomor_pertemuan": 18,
-        "judul": "Pertemuan 18",
-        "id": 126,
-        "created_at": "2026-01-17 18:36:26"
     }
 ]

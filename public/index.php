@@ -87,6 +87,9 @@ $routes = [
     'jadwal/simpan' => ['controller' => 'JadwalController', 'action' => 'store', 'auth' => true, 'method' => 'POST'],
     'jadwal/hapus' => ['controller' => 'JadwalController', 'action' => 'delete', 'auth' => true, 'method' => 'POST'],
 
+    // Search
+    'search' => ['controller' => 'SearchController', 'action' => 'search', 'auth' => true],
+
     // Admin Auth
     'admin/login' => ['controller' => 'AdminAuthController', 'action' => 'login'],
 

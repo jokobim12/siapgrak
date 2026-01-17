@@ -65,9 +65,9 @@ $currentPage = $_SERVER['REQUEST_URI'];
         </button>
         <span class="ml-3 font-semibold text-primary-600">SIAPGRAK</span>
         <div class="ml-auto flex items-center gap-2">
-            <a href="<?= base_url('notification') ?>" class="p-2 text-gray-600 relative">
-                <i class="fas fa-bell"></i>
-            </a>
+            <button onclick="openSearch()" class="p-2 text-gray-600">
+                <i class="fas fa-search"></i>
+            </button>
         </div>
     </header>
 
@@ -103,6 +103,15 @@ $currentPage = $_SERVER['REQUEST_URI'];
                 <span>Jadwal</span>
             </a>
         </nav>
+
+        <!-- Search Button in Sidebar -->
+        <div class="px-3 mt-2">
+            <button onclick="openSearch()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                <i class="fas fa-search"></i>
+                <span>Cari...</span>
+                <span class="ml-auto text-xs text-gray-400">⌘K</span>
+            </button>
+        </div>
 
         <div class="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-200">
             <a href="<?= base_url('profile') ?>" class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group">
@@ -262,6 +271,105 @@ $currentPage = $_SERVER['REQUEST_URI'];
 
         // Expose to global scope for delete buttons
         window.showConfirm = showConfirm;
+    </script>
+
+    <!-- Search Modal -->
+    <div id="searchModal" class="hidden fixed inset-0 z-[70] flex items-start justify-center pt-[10vh] px-4">
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeSearch()"></div>
+        <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <!-- Search Input -->
+            <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+                <i class="fas fa-search text-gray-400"></i>
+                <input type="text" id="searchInput" placeholder="Cari mata kuliah, materi, tugas..."
+                    class="flex-1 border-0 focus:ring-0 text-sm placeholder-gray-400"
+                    autocomplete="off" oninput="performSearch(this.value)">
+                <kbd class="hidden sm:inline px-2 py-1 text-xs text-gray-400 bg-gray-100 rounded">ESC</kbd>
+            </div>
+
+            <!-- Search Results -->
+            <div id="searchResults" class="max-h-80 overflow-y-auto">
+                <div class="p-8 text-center text-gray-400">
+                    <i class="fas fa-search text-3xl mb-2 opacity-50"></i>
+                    <p class="text-sm">Ketik untuk mencari...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Search Modal Logic
+        const searchModal = document.getElementById('searchModal');
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+        let searchTimeout;
+
+        function openSearch() {
+            searchModal.classList.remove('hidden');
+            setTimeout(() => searchInput.focus(), 100);
+        }
+
+        function closeSearch() {
+            searchModal.classList.add('hidden');
+            searchInput.value = '';
+            searchResults.innerHTML = '<div class="p-8 text-center text-gray-400"><i class="fas fa-search text-3xl mb-2 opacity-50"></i><p class="text-sm">Ketik untuk mencari...</p></div>';
+        }
+
+        function performSearch(query) {
+            clearTimeout(searchTimeout);
+
+            if (query.length < 2) {
+                searchResults.innerHTML = '<div class="p-8 text-center text-gray-400"><i class="fas fa-search text-3xl mb-2 opacity-50"></i><p class="text-sm">Ketik minimal 2 karakter...</p></div>';
+                return;
+            }
+
+            searchResults.innerHTML = '<div class="p-4 text-center text-gray-400"><i class="fas fa-spinner fa-spin"></i> Mencari...</div>';
+
+            searchTimeout = setTimeout(() => {
+                fetch('<?= base_url('search') ?>?q=' + encodeURIComponent(query))
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.results.length === 0) {
+                            searchResults.innerHTML = '<div class="p-8 text-center text-gray-400"><i class="fas fa-inbox text-3xl mb-2 opacity-50"></i><p class="text-sm">Tidak ada hasil untuk "' + query + '"</p></div>';
+                            return;
+                        }
+
+                        let html = '<div class="divide-y divide-gray-100">';
+                        data.results.forEach(item => {
+                            const iconColor = item.type === 'matkul' ? 'text-blue-500' : (item.type === 'materi' ? 'text-green-500' : 'text-amber-500');
+                            html += `
+                                <a href="${item.url}" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                                    <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas ${item.icon} ${iconColor} text-sm"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-900 truncate">${item.title}</p>
+                                        <p class="text-xs text-gray-500 truncate">${item.subtitle}</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-gray-300 text-xs"></i>
+                                </a>
+                            `;
+                        });
+                        html += '</div>';
+                        searchResults.innerHTML = html;
+                    })
+                    .catch(err => {
+                        searchResults.innerHTML = '<div class="p-4 text-center text-red-500"><i class="fas fa-exclamation-circle"></i> Gagal mencari</div>';
+                    });
+            }, 300);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                openSearch();
+            }
+            if (e.key === 'Escape' && !searchModal.classList.contains('hidden')) {
+                closeSearch();
+            }
+        });
+
+        window.openSearch = openSearch;
     </script>
 </body>
 

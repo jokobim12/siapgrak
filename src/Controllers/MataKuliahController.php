@@ -27,12 +27,15 @@ class MataKuliahController
         $semesterId = $_GET['semester_id'] ?? null;
 
         // Get semesters for filter
-        // Get semesters for filter
         $allSemesters = $this->db->find('semester', ['mahasiswa_id' => $user['id']]);
 
-        // Sort semesters manually
+        // Sort semesters by number ascending (Semester 1, 2, 3...)
         usort($allSemesters, function ($a, $b) {
-            return strtotime($b['created_at']) <=> strtotime($a['created_at']);
+            preg_match('/(\d+)/', $a['nama'], $matchA);
+            preg_match('/(\d+)/', $b['nama'], $matchB);
+            $numA = isset($matchA[1]) ? (int)$matchA[1] : 0;
+            $numB = isset($matchB[1]) ? (int)$matchB[1] : 0;
+            return $numA - $numB;
         });
 
         // Get mata kuliah

@@ -52,9 +52,14 @@ class SemesterController
             $sem['total_materi'] = count($semMateri);
         }
 
-        // Sort desc
+        // Sort by semester number ascending (Semester 1, 2, 3...)
         usort($semesters, function ($a, $b) {
-            return strtotime($b['created_at']) - strtotime($a['created_at']);
+            // Extract number from name (e.g., "Semester 3" -> 3)
+            preg_match('/(\d+)/', $a['nama'], $matchA);
+            preg_match('/(\d+)/', $b['nama'], $matchB);
+            $numA = isset($matchA[1]) ? (int)$matchA[1] : 0;
+            $numB = isset($matchB[1]) ? (int)$matchB[1] : 0;
+            return $numA - $numB; // Ascending
         });
 
         view('semester.index', [

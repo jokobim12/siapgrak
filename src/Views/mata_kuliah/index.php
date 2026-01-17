@@ -1,68 +1,77 @@
 <?php
 
 /**
- * Daftar Mata Kuliah
+ * Daftar Mata Kuliah - Grid Layout
  */
 $title = 'Mata Kuliah';
 ob_start();
 ?>
 
 <div class="space-y-4 pb-20 lg:pb-0">
-    <div class="flex items-center justify-between">
-        <h1 class="text-xl font-bold text-gray-800">Mata Kuliah</h1>
-        <a href="<?= base_url('mata-kuliah/tambah') ?>" class="btn-primary btn-sm">
-            <i class="fas fa-plus mr-2"></i>Tambah
+    <!-- Header with Filter -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <h1 class="text-xl font-bold text-gray-900">Mata Kuliah</h1>
+            <?php if (!empty($semesters)): ?>
+                <select onchange="window.location.href=this.value"
+                    class="text-sm border-gray-200 rounded-lg py-1.5 pl-3 pr-8 bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="<?= base_url('mata-kuliah') ?>" <?= !$selectedSemester ? 'selected' : '' ?>>Semua Semester</option>
+                    <?php foreach ($semesters as $s): ?>
+                        <option value="<?= base_url('mata-kuliah?semester_id=' . $s['id']) ?>" <?= $selectedSemester == $s['id'] ? 'selected' : '' ?>>
+                            <?= $s['nama'] ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
+        </div>
+        <a href="<?= base_url('mata-kuliah/tambah') ?>" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <i class="fas fa-plus"></i>
+            <span>Tambah</span>
         </a>
     </div>
 
-    <!-- Filter Semester -->
-    <?php if (!empty($semesters)): ?>
-        <div class="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
-            <a href="<?= base_url('mata-kuliah') ?>"
-                class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors <?= !$selectedSemester ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50' ?>">
-                Semua
-            </a>
-            <?php foreach ($semesters as $s): ?>
-                <a href="<?= base_url('mata-kuliah?semester_id=' . $s['id']) ?>"
-                    class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors <?= $selectedSemester == $s['id'] ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50' ?>">
-                    <?= $s['nama'] ?>
-                </a>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-
-    <!-- Lista Matkul -->
+    <!-- Grid Matkul -->
     <?php if (!empty($mataKuliahList)): ?>
-        <div class="space-y-3">
+        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <?php foreach ($mataKuliahList as $mk): ?>
-                <a href="<?= base_url('mata-kuliah/detail?id=' . $mk['id']) ?>" class="card block">
-                    <div class="p-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <i class="fas fa-book text-blue-600 text-lg"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h3 class="font-semibold text-gray-800 truncate"><?= $mk['nama_mk'] ?></h3>
-                                <p class="text-sm text-gray-500"><?= $mk['semester_nama'] ?></p>
-                            </div>
-                            <div class="text-right">
-                                <span class="badge-primary"><?= $mk['total_materi'] ?> materi</span>
-                            </div>
+                <a href="<?= base_url('mata-kuliah/detail?id=' . $mk['id']) ?>"
+                    class="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all group">
+                    <!-- Icon & Materi Badge -->
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
+                            <i class="fas fa-book text-white text-sm"></i>
                         </div>
+                        <span class="text-xs font-medium <?= $mk['total_materi'] > 0 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 bg-gray-100' ?> px-2 py-0.5 rounded-full">
+                            <?= $mk['total_materi'] ?> materi
+                        </span>
                     </div>
+
+                    <!-- Title -->
+                    <h3 class="font-semibold text-gray-900 text-sm leading-tight mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                        <?= $mk['nama_mk'] ?>
+                    </h3>
+
+                    <!-- Semester -->
+                    <p class="text-xs text-gray-500"><?= $mk['semester_nama'] ?></p>
                 </a>
             <?php endforeach; ?>
         </div>
+
+        <!-- Count Info -->
+        <p class="text-xs text-gray-400 text-center">
+            Menampilkan <?= count($mataKuliahList) ?> mata kuliah
+        </p>
     <?php else: ?>
-        <div class="card">
-            <div class="empty-state">
-                <i class="fas fa-book-open empty-state-icon"></i>
-                <p class="font-medium text-gray-600">Belum ada mata kuliah</p>
-                <p class="text-sm text-gray-500 mt-1">Tambahkan mata kuliah pertama Anda</p>
-                <a href="<?= base_url('mata-kuliah/tambah') ?>" class="btn-primary mt-4">
-                    <i class="fas fa-plus mr-2"></i>Tambah Mata Kuliah
-                </a>
+        <div class="bg-white border border-gray-200 rounded-xl p-12 text-center">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-book-open text-gray-400 text-2xl"></i>
             </div>
+            <h3 class="font-semibold text-gray-900 mb-1">Belum ada mata kuliah</h3>
+            <p class="text-sm text-gray-500 mb-6">Tambahkan mata kuliah pertama Anda</p>
+            <a href="<?= base_url('mata-kuliah/tambah') ?>" class="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                <i class="fas fa-plus"></i>
+                Tambah Mata Kuliah
+            </a>
         </div>
     <?php endif; ?>
 </div>

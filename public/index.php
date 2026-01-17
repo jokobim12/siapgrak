@@ -45,6 +45,7 @@ $routes = [
     'auth/callback' => ['controller' => 'AuthController', 'action' => 'callback'],
     'logout' => ['controller' => 'AuthController', 'action' => 'logout'],
     'register-nim' => ['controller' => 'AuthController', 'action' => 'registerNim'],
+    'confirm-password' => ['controller' => 'AuthController', 'action' => 'confirmPassword'],
 
     // Dashboard
     'dashboard' => ['controller' => 'DashboardController', 'action' => 'index', 'auth' => true],

@@ -25,10 +25,21 @@ class JadwalController
     {
         $user = auth();
 
+        // Get semester aktif
+        $semesterAktif = $this->db->findOne('semester', [
+            'mahasiswa_id' => $user['id'],
+            'is_aktif' => true
+        ]);
+
         // Get jadwal grouped by day
-        // Get jadwal logic manually
         $allJadwal = $this->db->all('jadwal');
-        $allMatkul = $this->db->find('mata_kuliah', ['mahasiswa_id' => $user['id']]);
+
+        // Get mata kuliah hanya dari semester aktif
+        $filterMatkul = ['mahasiswa_id' => $user['id']];
+        if ($semesterAktif) {
+            $filterMatkul['semester_id'] = $semesterAktif['id'];
+        }
+        $allMatkul = $this->db->find('mata_kuliah', $filterMatkul);
         $userMatkulIds = array_column($allMatkul, 'id');
 
         $jadwal = [];
@@ -39,7 +50,7 @@ class JadwalController
                     if ($mk['id'] == $j['mata_kuliah_id']) {
                         $j['nama_mk'] = $mk['nama_mk'];
                         $j['dosen'] = $mk['dosen'] ?? '-';
-                        $j['korti'] = $mk['korti'] ?? '-'; // Fetch Korti
+                        $j['korti'] = $mk['korti'] ?? '-';
                         break;
                     }
                 }
@@ -71,7 +82,8 @@ class JadwalController
         }
 
         view('jadwal.index', [
-            'jadwalByDay' => $jadwalByDay
+            'jadwalByDay' => $jadwalByDay,
+            'semesterAktif' => $semesterAktif
         ]);
     }
     public function create()
@@ -81,7 +93,39 @@ class JadwalController
         $matkul = $this->db->find('mata_kuliah', ['mahasiswa_id' => $user['id']]);
         // Get semesters for filter
         $semesters = $this->db->find('semester', ['mahasiswa_id' => $user['id']]);
-        view('jadwal.create', ['matkul' => $matkul, 'semesters' => $semesters]);
+
+        // Sort semesters by number ascending
+        usort($semesters, function ($a, $b) {
+            preg_match('/(\d+)/', $a['nama'], $matchA);
+            preg_match('/(\d+)/', $b['nama'], $matchB);
+            return (int)($matchA[1] ?? 0) - (int)($matchB[1] ?? 0);
+        });
+
+        // Get existing jadwal for validation
+        $allJadwal = $this->db->all('jadwal');
+        $userMatkulIds = array_column($matkul, 'id');
+        $scheduledMatkulIds = [];
+        $activeSemesterId = null;
+
+        foreach ($allJadwal as $j) {
+            if (in_array($j['mata_kuliah_id'], $userMatkulIds)) {
+                $scheduledMatkulIds[] = $j['mata_kuliah_id'];
+                // Get the semester of this scheduled matkul
+                foreach ($matkul as $mk) {
+                    if ($mk['id'] == $j['mata_kuliah_id'] && !$activeSemesterId) {
+                        $activeSemesterId = $mk['semester_id'];
+                    }
+                }
+            }
+        }
+        $scheduledMatkulIds = array_unique($scheduledMatkulIds);
+
+        view('jadwal.create', [
+            'matkul' => $matkul,
+            'semesters' => $semesters,
+            'scheduledMatkulIds' => $scheduledMatkulIds,
+            'activeSemesterId' => $activeSemesterId
+        ]);
     }
 
     public function store()
@@ -96,14 +140,38 @@ class JadwalController
         $jam_mulai = $_POST['jam_mulai'] ?? '';
         $jam_selesai = $_POST['jam_selesai'] ?? '';
         $ruangan = sanitize($_POST['ruangan'] ?? '');
-
-        // Optional: Update MK detail like Dosen and Korti if provided
         $dosen = sanitize($_POST['dosen'] ?? '');
         $korti = sanitize($_POST['korti'] ?? '');
 
         if (!$mata_kuliah_id || !$hari || !$jam_mulai || !$jam_selesai) {
             flash('error', 'Data wajib diisi');
             redirect('jadwal/tambah');
+        }
+
+        // Validation 1: Check if matkul already scheduled
+        $existingJadwal = $this->db->findOne('jadwal', ['mata_kuliah_id' => $mata_kuliah_id]);
+        if ($existingJadwal) {
+            flash('error', 'Mata kuliah ini sudah dijadwalkan. Satu mata kuliah hanya bisa dijadwalkan sekali.');
+            redirect('jadwal/tambah');
+        }
+
+        // Validation 2: Check semester consistency
+        $matkul = $this->db->find('mata_kuliah', ['mahasiswa_id' => $user['id']]);
+        $userMatkulIds = array_column($matkul, 'id');
+        $allJadwal = $this->db->all('jadwal');
+
+        $newMk = $this->db->findById('mata_kuliah', $mata_kuliah_id);
+        $newSemesterId = $newMk['semester_id'] ?? null;
+
+        foreach ($allJadwal as $j) {
+            if (in_array($j['mata_kuliah_id'], $userMatkulIds)) {
+                foreach ($matkul as $mk) {
+                    if ($mk['id'] == $j['mata_kuliah_id'] && $mk['semester_id'] != $newSemesterId) {
+                        flash('error', 'Jadwal hanya boleh dari satu semester yang sama. Hapus jadwal lama atau pilih mata kuliah dari semester yang sama.');
+                        redirect('jadwal/tambah');
+                    }
+                }
+            }
         }
 
         // Save Jadwal
@@ -115,15 +183,12 @@ class JadwalController
             'ruangan' => $ruangan
         ]);
 
-        // Update MK with Dosen and potentially Korti (if we add that column)
-        // Since we are using JSON Database, we can just add keys.
-        // Let's check if MK exists
+        // Update MK with Dosen and Korti
         $mk = $this->db->findById('mata_kuliah', $mata_kuliah_id);
         if ($mk) {
             $updateData = [];
             if (!empty($dosen)) $updateData['dosen'] = $dosen;
             if (!empty($korti)) $updateData['korti'] = $korti;
-
             if (!empty($updateData)) {
                 $this->db->update('mata_kuliah', $mata_kuliah_id, $updateData);
             }

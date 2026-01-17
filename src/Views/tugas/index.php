@@ -1,280 +1,156 @@
 <?php
 
 /**
- * Daftar Tugas
+ * Daftar Tugas - Clean Design
  */
 $title = 'Tugas';
 ob_start();
 ?>
 
 <div class="space-y-4 pb-20 lg:pb-0">
-    <div class="flex items-center justify-between">
-        <h1 class="text-xl font-bold text-gray-800">Tugas & Todo</h1>
+    <!-- Header -->
+    <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <h1 class="text-xl font-bold text-gray-900">Tugas</h1>
+            <!-- Filter Dropdown -->
+            <select onchange="window.location.href=this.value"
+                class="text-sm border-gray-200 rounded-lg py-1.5 pl-3 pr-8 bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+                <option value="<?= base_url('tugas') ?>" <?= $filter === 'all' ? 'selected' : '' ?>>Semua</option>
+                <option value="<?= base_url('tugas?filter=pending') ?>" <?= $filter === 'pending' ? 'selected' : '' ?>>Belum Selesai</option>
+                <option value="<?= base_url('tugas?filter=submitted') ?>" <?= $filter === 'submitted' ? 'selected' : '' ?>>Selesai</option>
+            </select>
+        </div>
         <button onclick="document.getElementById('createTaskModal').classList.remove('hidden')"
-            class="btn-primary text-sm px-4 py-2">
-            <i class="fas fa-plus mr-2"></i>Baru
+            class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <i class="fas fa-plus"></i>
+            <span>Baru</span>
         </button>
-    </div>
-
-    <!-- Filter Stats -->
-    <div class="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-        <a href="<?= base_url('tugas') ?>"
-            class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors <?= $filter === 'all' ? 'bg-primary-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
-            Semua
-        </a>
-        <a href="<?= base_url('tugas?filter=pending') ?>"
-            class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors <?= $filter === 'pending' ? 'bg-amber-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
-            Belum Selesai
-        </a>
-        <a href="<?= base_url('tugas?filter=submitted') ?>"
-            class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors <?= $filter === 'submitted' ? 'bg-green-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
-            Selesai
-        </a>
     </div>
 
     <!-- Todo List -->
     <?php if (!empty($tugasList)): ?>
-        <div class="space-y-4 mt-6">
-            <?php foreach ($tugasList as $t):
-                $isDone = !empty($t['submission_id']);
-                $isLate = (!$isDone && $t['sisa_hari'] < 0);
-            ?>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-start gap-4 transition-all hover:shadow-md relative overflow-hidden group">
-                    <?php if ($isLate && !$isDone): ?>
-                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
-                    <?php endif; ?>
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div class="divide-y divide-gray-100">
+                <?php foreach ($tugasList as $t):
+                    $isDone = !empty($t['submission_id']);
+                    $isLate = (!$isDone && $t['sisa_hari'] < 0);
+                    $hasDeadline = !empty($t['deadline']);
+                    $deadlineDate = $hasDeadline ? date('d M H:i', strtotime($t['deadline'])) : '-';
+                ?>
+                    <div class="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors <?= $isLate && !$isDone ? 'border-l-4 border-red-500' : '' ?>">
+                        <!-- Checkbox -->
+                        <form action="<?= base_url($isDone ? 'tugas/uncheck' : 'tugas/submit') ?>" method="POST" class="flex-shrink-0">
+                            <input type="hidden" name="tugas_id" value="<?= $t['id'] ?>">
+                            <button type="submit"
+                                class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
+                                           <?= $isDone
+                                                ? 'bg-green-500 border-green-500 text-white'
+                                                : ($isLate ? 'border-red-400 hover:border-red-500' : 'border-gray-300 hover:border-blue-500') ?>">
+                                <?php if ($isDone): ?>
+                                    <i class="fas fa-check text-xs"></i>
+                                <?php endif; ?>
+                            </button>
+                        </form>
 
-                    <!-- Checkbox Action -->
-                    <form action="<?= base_url($isDone ? 'tugas/uncheck' : 'tugas/submit') ?>" method="POST" class="flex-shrink-0 pt-1 z-10 relative">
-                        <input type="hidden" name="tugas_id" value="<?= $t['id'] ?>">
-                        <button type="submit"
-                            title="<?= $isDone ? 'Tandai Belum Selesai' : 'Tandai Selesai' ?>"
-                            style="width: 26px; height: 26px; border-radius: 50%; border: 2px solid <?= $isDone ? '#22c55e' : ($isLate ? '#f87171' : '#d1d5db') ?>; background-color: <?= $isDone ? '#22c55e' : 'white' ?>; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;"
-                            class="shadow-sm transition-transform hover:scale-110 active:scale-95">
-                            <?php if ($isDone): ?>
-                                <i class="fas fa-check" style="font-size: 12px;"></i>
-                            <?php endif; ?>
-                        </button>
-                    </form>
-
-                    <a href="<?= base_url('tugas/detail?id=' . $t['id']) ?>" class="flex-1 block">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="font-semibold text-gray-800 text-lg leading-tight <?= $isDone ? 'line-through text-gray-400' : '' ?>">
+                        <!-- Content -->
+                        <a href="<?= base_url('tugas/detail?id=' . $t['id']) ?>" class="flex-1 min-w-0 flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <h3 class="font-semibold text-gray-900 text-sm truncate <?= $isDone ? 'line-through text-gray-400' : '' ?>">
                                     <?= $t['judul'] ?>
                                 </h3>
-                                <p class="text-xs text-gray-500 mt-1 font-medium bg-gray-100 inline-block px-2 py-0.5 rounded">
-                                    <?= $t['nama_mk'] ?>
-                                </p>
+                                <p class="text-xs text-gray-500 truncate"><?= $t['nama_mk'] ?></p>
                             </div>
-                        </div>
-
-                        <div class="mt-3 flex items-center gap-4 text-sm">
-                            <div class="flex items-center gap-1.5 
-                                <?= $isDone ? 'text-green-600' : ($isLate ? 'text-red-600 font-bold' : ($t['sisa_hari'] <= 3 ? 'text-amber-600' : 'text-gray-500')) ?>">
-                                <i class="far fa-clock"></i>
-                                <span>
-                                    <?php
-                                    $hasDeadline = !empty($t['deadline']);
-                                    $deadlineDate = $hasDeadline ? date('d M, H:i', strtotime($t['deadline'])) : '-';
-
-                                    if ($isDone) {
-                                        echo "Selesai";
-                                    } elseif (!$hasDeadline) {
-                                        echo "Tanpa Batas Waktu";
-                                    } elseif ($isLate) {
-                                        echo "Telat " . abs($t['sisa_hari']) . " hari ($deadlineDate)";
-                                    } elseif ($t['sisa_hari'] == 0) {
-                                        echo "Hari ini, $deadlineDate";
-                                    } else {
-                                        echo "$deadlineDate (" . $t['sisa_hari'] . " hari lagi)";
-                                    }
-                                    ?>
-                                </span>
+                            <div class="text-right flex-shrink-0">
+                                <?php if ($isDone): ?>
+                                    <span class="text-xs text-green-600 font-medium"><i class="fas fa-check mr-1"></i>Selesai</span>
+                                <?php elseif ($isLate): ?>
+                                    <span class="text-xs text-red-600 font-medium">Telat <?= abs($t['sisa_hari']) ?> hari</span>
+                                <?php elseif (!$hasDeadline): ?>
+                                    <span class="text-xs text-gray-400">Tanpa deadline</span>
+                                <?php elseif ($t['sisa_hari'] == 0): ?>
+                                    <span class="text-xs text-amber-600 font-medium">Hari ini</span>
+                                <?php else: ?>
+                                    <span class="text-xs text-gray-600"><?= $deadlineDate ?></span>
+                                    <p class="text-[10px] text-gray-400"><?= $t['sisa_hari'] ?> hari lagi</p>
+                                <?php endif; ?>
                             </div>
-                        </div>
-                    </a>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php else: ?>
-        <div class="flex flex-col items-center justify-center py-12 text-center text-gray-400">
-            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <i class="fas fa-clipboard-list text-2xl"></i>
+                        </a>
+                    </div>
+                <?php endforeach; ?>
             </div>
-            <p class="font-medium text-gray-600">Tidak ada tugas</p>
-            <p class="text-sm">Mulai tambahkan tugas baru Anda!</p>
+        </div>
+
+        <p class="text-xs text-gray-400 text-center">
+            Menampilkan <?= count($tugasList) ?> tugas
+        </p>
+    <?php else: ?>
+        <div class="bg-white border border-gray-200 rounded-xl p-12 text-center">
+            <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-clipboard-list text-gray-400 text-xl"></i>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-1">Tidak ada tugas</h3>
+            <p class="text-sm text-gray-500 mb-4">Mulai tambahkan tugas baru Anda</p>
+            <button onclick="document.getElementById('createTaskModal').classList.add('hidden')"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+                <i class="fas fa-plus"></i>Tambah Tugas
+            </button>
         </div>
     <?php endif; ?>
 </div>
 
 <!-- Modal Create Task -->
-<!-- Custom Style for Modal -->
-<style>
-    /* Overlay Background - Solid Dark Transparent */
-    .modal-overlay {
-        background-color: rgba(0, 0, 0, 0.5);
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 40;
-    }
-
-    /* Modal Container styling */
-    .modal-content {
-        max-width: 480px;
-        /* Diperkecil dari 600px */
-        width: 90%;
-        margin: auto;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        position: relative;
-        z-index: 50;
-        /* Pastikan di atas overlay */
-        overflow: hidden;
-    }
-
-    .modal-header {
-        padding: 16px 20px;
-        background: #f9fafb;
-        border-bottom: 1px solid #e5e7eb;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .modal-body {
-        padding: 20px;
-    }
-
-    .form-group {
-        margin-bottom: 16px;
-    }
-
-    .form-label {
-        display: block;
-        font-size: 0.825rem;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 6px;
-    }
-
-    .form-control {
-        width: 100%;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        /* Lebih kotak sedikit biar rapi */
-        padding: 8px 12px;
-        font-size: 0.875rem;
-        transition: all 0.2s;
-        background-color: #fff;
-        color: #1f2937;
-    }
-
-    .form-control:focus {
-        border-color: #2563eb;
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
-    }
-
-    .btn-submit {
-        background-color: #2563eb;
-        color: white;
-        padding: 8px 20px;
-        border-radius: 8px;
-        font-weight: 500;
-        border: none;
-        cursor: pointer;
-        font-size: 0.875rem;
-    }
-
-    .btn-cancel {
-        background-color: #f3f4f6;
-        color: #4b5563;
-        padding: 8px 20px;
-        border-radius: 8px;
-        font-weight: 500;
-        border: none;
-        cursor: pointer;
-        font-size: 0.875rem;
-    }
-</style>
-
 <div id="createTaskModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <!-- Overlay Click Close -->
-    <div class="modal-overlay" onclick="this.parentElement.classList.add('hidden')"></div>
-
-    <!-- Modal Content -->
-    <div class="modal-content">
-        <div class="modal-header">
-            <div>
-                <h3 class="text-lg font-bold text-gray-800">Tambah Tugas</h3>
-            </div>
-            <button onclick="this.closest('#createTaskModal').classList.add('hidden')" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors">
+    <div class="absolute inset-0 bg-black/50" onclick="this.parentElement.classList.add('hidden')"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-bold text-gray-900">Tambah Tugas</h3>
+            <button onclick="this.closest('#createTaskModal').classList.add('hidden')" class="p-1 text-gray-400 hover:text-gray-600">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <form action="<?= base_url('tugas/create') ?>" method="POST" class="modal-body">
+        <form action="<?= base_url('tugas/create') ?>" method="POST" class="p-5 space-y-4">
             <input type="hidden" name="redirect_url" value="tugas">
 
-            <div class="form-group">
-                <label class="form-label">
-                    <i class="fas fa-layer-group mr-1 text-primary-600"></i>Filter Semester
-                </label>
-                <select id="todo_semester_filter" class="form-control">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Filter Semester</label>
+                <select id="todo_semester_filter" class="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
                     <option value="all">Semua Semester</option>
-                    <?php if (!empty($semesters)): ?>
-                        <?php foreach ($semesters as $sem): ?>
-                            <option value="<?= $sem['id'] ?>"><?= $sem['nama'] ?></option>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                    <?php foreach ($semesters as $sem): ?>
+                        <option value="<?= $sem['id'] ?>"><?= $sem['nama'] ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">
-                    <i class="fas fa-book mr-1 text-primary-600"></i>Mata Kuliah
-                </label>
-                <select name="mata_kuliah_id" id="todo_mk_select" class="form-control" required>
-                    <option value="" selected>Pilih...</option>
-                    <?php if (!empty($allMatkul)): ?>
-                        <?php foreach ($allMatkul as $mk): ?>
-                            <option value="<?= $mk['id'] ?>" data-semester="<?= $mk['semester_id'] ?>"><?= $mk['nama_mk'] ?></option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option value="" disabled>Belum ada MK</option>
-                    <?php endif; ?>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mata Kuliah *</label>
+                <select name="mata_kuliah_id" id="todo_mk_select" class="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                    <option value="">Pilih...</option>
+                    <?php foreach ($allMatkul as $mk): ?>
+                        <option value="<?= $mk['id'] ?>" data-semester="<?= $mk['semester_id'] ?>"><?= $mk['nama_mk'] ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">
-                    <i class="fas fa-pen mr-1 text-primary-600"></i>Judul
-                </label>
-                <input type="text" name="judul" class="form-control" placeholder="Contoh: Kuis 1" required>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Judul *</label>
+                <input type="text" name="judul" class="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Contoh: Kuis 1" required>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">
-                    <i class="fas fa-align-left mr-1 text-primary-600"></i>Deskripsi
-                </label>
-                <textarea name="deskripsi" rows="3" class="form-control" placeholder="Catatan..."></textarea>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                <textarea name="deskripsi" rows="2" class="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Catatan..."></textarea>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">
-                    <i class="far fa-clock mr-1 text-primary-600"></i>Deadline
-                </label>
-                <input type="datetime-local" name="deadline" class="form-control" required>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Deadline *</label>
+                <input type="datetime-local" name="deadline" class="w-full text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
             </div>
 
             <div class="flex justify-end gap-3 pt-2">
-                <button type="button" onclick="this.closest('#createTaskModal').classList.add('hidden')" class="btn-cancel">Batal</button>
-                <button type="submit" class="btn-submit">Simpan</button>
+                <button type="button" onclick="this.closest('#createTaskModal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Batal</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Simpan</button>
             </div>
         </form>
     </div>
@@ -290,16 +166,13 @@ ob_start();
 
             semesterFilter.addEventListener('change', function() {
                 const selectedSem = this.value;
-
-                // Reset MK Select
-                mkSelect.innerHTML = '<option value="" selected>Pilih...</option>';
+                mkSelect.innerHTML = '<option value="">Pilih...</option>';
 
                 allOptions.forEach(opt => {
                     if (opt.value === "") return;
-
                     const semId = opt.getAttribute('data-semester');
                     if (selectedSem === 'all' || semId === selectedSem) {
-                        mkSelect.appendChild(opt);
+                        mkSelect.appendChild(opt.cloneNode(true));
                     }
                 });
             });

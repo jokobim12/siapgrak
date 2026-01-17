@@ -33,7 +33,15 @@ class TugasController
         $allTugas = $this->db->all('tugas');
         $allPertemuan = $this->db->all('pertemuan');
         $allMatkul = $this->db->find('mata_kuliah', ['mahasiswa_id' => $user['id']]);
-        $semesters = $this->db->find('semester', ['mahasiswa_id' => $user['id']]); // Add this
+        $semesters = $this->db->find('semester', ['mahasiswa_id' => $user['id']]);
+
+        // Sort semesters by number ascending
+        usort($semesters, function ($a, $b) {
+            preg_match('/(\d+)/', $a['nama'], $matchA);
+            preg_match('/(\d+)/', $b['nama'], $matchB);
+            return (int)($matchA[1] ?? 0) - (int)($matchB[1] ?? 0);
+        });
+
         $allPengumpulan = $this->db->find('pengumpulan_tugas', ['mahasiswa_id' => $user['id']]);
 
         // Filter and enrich tugas

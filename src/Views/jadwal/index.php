@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Jadwal Mingguan
+ * Jadwal Mingguan - Card per Hari
  */
 $title = 'Jadwal';
 $days = ['senin' => 'Senin', 'selasa' => 'Selasa', 'rabu' => 'Rabu', 'kamis' => 'Kamis', 'jumat' => 'Jumat', 'sabtu' => 'Sabtu'];
@@ -12,79 +12,89 @@ $todayId = $dayMap[$today] ?? '';
 ob_start();
 ?>
 
-<div class="space-y-6 pb-20 lg:pb-0">
+<div class="space-y-4 pb-20 lg:pb-0">
+    <!-- Header -->
     <div class="flex items-center justify-between">
-        <h1 class="text-xl font-bold text-gray-800">Jadwal Mingguan</h1>
-        <a href="<?= base_url('jadwal/tambah') ?>" class="btn-primary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-            <i class="fas fa-plus"></i> Tambah
+        <div class="flex items-center gap-3">
+            <h1 class="text-xl font-bold text-gray-900">Jadwal</h1>
+            <?php if (isset($semesterAktif) && $semesterAktif): ?>
+                <span class="text-xs px-2 py-1 rounded-lg bg-blue-100 text-blue-700 font-medium">
+                    <?= htmlspecialchars($semesterAktif['nama'] ?? 'Semester ' . $semesterAktif['nomor']) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+        <a href="<?= base_url('jadwal/tambah') ?>" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <i class="fas fa-plus"></i>
+            <span>Tambah</span>
         </a>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Day Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <?php foreach ($days as $dayKey => $dayName): ?>
             <?php
             $isToday = $dayKey === $todayId;
             $schedules = $jadwalByDay[$dayKey] ?? [];
             ?>
-            <div class="bg-white rounded-xl shadow-sm border <?= $isToday ? 'border-primary-300 ring-1 ring-primary-100' : 'border-gray-200' ?> overflow-hidden flex flex-col h-full">
-                <!-- Header Hari -->
-                <div class="p-3 border-b flex items-center justify-between <?= $isToday ? 'bg-primary-50 border-primary-100' : 'bg-gray-50 border-gray-100' ?>">
-                    <h3 class="font-semibold <?= $isToday ? 'text-primary-700' : 'text-gray-700' ?>">
-                        <?= $dayName ?>
-                    </h3>
+            <div class="bg-white rounded-xl border <?= $isToday ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200' ?> overflow-hidden">
+                <!-- Day Header -->
+                <div class="px-4 py-2.5 border-b <?= $isToday ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100' ?> flex items-center justify-between">
+                    <h3 class="font-semibold <?= $isToday ? 'text-blue-700' : 'text-gray-700' ?>"><?= $dayName ?></h3>
                     <?php if ($isToday): ?>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 font-medium">Hari ini</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white font-medium">Hari ini</span>
                     <?php endif; ?>
                 </div>
 
-                <!-- List Jadwal -->
-                <div class="flex-1 p-3 space-y-3">
+                <!-- Schedules -->
+                <div class="p-3 space-y-2 min-h-[120px]">
                     <?php if (!empty($schedules)): ?>
                         <?php foreach ($schedules as $j): ?>
-                            <div class="group relative bg-white border border-gray-100 rounded-lg p-3 hover:shadow-md transition-shadow">
-                                <!-- Top: Time & Delete -->
-                                <div class="flex justify-between items-start mb-1">
-                                    <div class="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-1 rounded">
-                                        <?= substr($j['jam_mulai'], 0, 5) ?> - <?= substr($j['jam_selesai'], 0, 5) ?>
-                                    </div>
-                                    <form action="<?= base_url('jadwal/hapus') ?>" method="POST" onsubmit="return confirm('Hapus jadwal ini?')" class="opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <?= csrf_field() ?>
-                                        <input type="hidden" name="id" value="<?= $j['id'] ?>">
-                                        <button type="submit" class="text-red-400 hover:text-red-600">
-                                            <i class="fas fa-trash text-sm"></i>
-                                        </button>
-                                    </form>
+                            <div class="group relative bg-gray-50 hover:bg-white border border-gray-100 hover:border-blue-200 rounded-lg p-3 transition-all">
+                                <!-- Time Badge -->
+                                <div class="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded mb-2">
+                                    <i class="far fa-clock text-[10px]"></i>
+                                    <?= substr($j['jam_mulai'], 0, 5) ?> - <?= substr($j['jam_selesai'], 0, 5) ?>
                                 </div>
 
-                                <h4 class="font-bold text-gray-800 text-sm mb-1 leading-tight"><?= $j['nama_mk'] ?></h4>
+                                <!-- Title -->
+                                <h4 class="font-semibold text-gray-900 text-sm leading-tight mb-1.5"><?= $j['nama_mk'] ?></h4>
 
-                                <div class="space-y-1 text-xs text-gray-500">
+                                <!-- Details -->
+                                <div class="space-y-0.5 text-xs text-gray-500">
                                     <?php if ($j['ruangan']): ?>
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-map-marker-alt w-4 text-center text-gray-400"></i>
+                                        <div class="flex items-center gap-1.5">
+                                            <i class="fas fa-map-marker-alt w-3 text-center text-gray-400"></i>
                                             <span><?= $j['ruangan'] ?></span>
                                         </div>
                                     <?php endif; ?>
-
                                     <?php if ($j['dosen'] && $j['dosen'] != '-'): ?>
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-user-tie w-4 text-center text-gray-400"></i>
+                                        <div class="flex items-center gap-1.5">
+                                            <i class="fas fa-user-tie w-3 text-center text-gray-400"></i>
                                             <span><?= $j['dosen'] ?></span>
                                         </div>
                                     <?php endif; ?>
-
                                     <?php if ($j['korti'] && $j['korti'] != '-'): ?>
-                                        <div class="flex items-center gap-2" title="Korti / PJ">
-                                            <i class="fas fa-user-graduate w-4 text-center text-gray-400"></i>
-                                            <span class="text-gray-600">PJ: <?= $j['korti'] ?></span>
+                                        <div class="flex items-center gap-1.5">
+                                            <i class="fas fa-user-graduate w-3 text-center text-gray-400"></i>
+                                            <span>PJ: <?= $j['korti'] ?></span>
                                         </div>
                                     <?php endif; ?>
                                 </div>
+
+                                <!-- Delete Button -->
+                                <form id="deleteJadwal<?= $j['id'] ?>" action="<?= base_url('jadwal/hapus') ?>" method="POST"
+                                    class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="id" value="<?= $j['id'] ?>">
+                                    <button type="button" onclick="showConfirm('Hapus Jadwal', 'Apakah Anda yakin ingin menghapus jadwal ini dari hari <?= ucfirst($dayKey) ?>?', '', true, 'deleteJadwal<?= $j['id'] ?>')" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                                        <i class="fas fa-trash text-xs"></i>
+                                    </button>
+                                </form>
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <div class="h-full flex flex-col items-center justify-center text-gray-400 py-6">
-                            <i class="far fa-calendar-times text-2xl mb-2 opacity-50"></i>
+                        <div class="h-full flex flex-col items-center justify-center text-gray-300 py-6">
+                            <i class="far fa-calendar text-2xl mb-1"></i>
                             <span class="text-xs">Kosong</span>
                         </div>
                     <?php endif; ?>

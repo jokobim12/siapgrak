@@ -35,6 +35,61 @@ class AuthController
             redirect('dashboard');
         }
 
+        // Handle POST request for email/password login
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $email = sanitize($_POST['email'] ?? '');
+            $password = $_POST['password'] ?? '';
+
+            if (empty($email) || empty($password)) {
+                flash('error', 'Email dan password harus diisi');
+                $authUrl = $this->googleAuth->getAuthUrl();
+                view('auth.login', ['authUrl' => $authUrl]);
+                return;
+            }
+
+            // Cari mahasiswa berdasarkan email
+            $mahasiswa = $this->db->findOne('mahasiswa', ['email' => $email]);
+
+            if (!$mahasiswa) {
+                flash('error', 'Akun tidak ditemukan. Silakan login dengan Google terlebih dahulu.');
+                $authUrl = $this->googleAuth->getAuthUrl();
+                view('auth.login', ['authUrl' => $authUrl]);
+                return;
+            }
+
+            // Cek apakah mahasiswa punya password
+            if (empty($mahasiswa['password'])) {
+                flash('error', 'Akun belum memiliki password. Silakan login dengan Google untuk membuat password.');
+                $authUrl = $this->googleAuth->getAuthUrl();
+                view('auth.login', ['authUrl' => $authUrl]);
+                return;
+            }
+
+            // Verifikasi password
+            if (!password_verify($password, $mahasiswa['password'])) {
+                flash('error', 'Password salah');
+                $authUrl = $this->googleAuth->getAuthUrl();
+                view('auth.login', ['authUrl' => $authUrl]);
+                return;
+            }
+
+            // Set session
+            $_SESSION['user'] = [
+                'id' => $mahasiswa['id'],
+                'nim' => $mahasiswa['nim'],
+                'nama' => $mahasiswa['nama'],
+                'email' => $mahasiswa['email'],
+                'foto' => $mahasiswa['foto'],
+                'angkatan' => $mahasiswa['angkatan'],
+                'semester_aktif' => $mahasiswa['semester_aktif'],
+                'gdrive_folder_id' => $mahasiswa['gdrive_folder_id']
+            ];
+
+            flash('success', 'Login berhasil! Selamat datang, ' . $mahasiswa['nama']);
+            redirect('dashboard');
+            return;
+        }
+
         $authUrl = $this->googleAuth->getAuthUrl();
         view('auth.login', ['authUrl' => $authUrl]);
     }
@@ -116,40 +171,21 @@ class AuthController
             $mahasiswa['foto'] = $googleUser['foto'];
             $mahasiswa['semester_aktif'] = $studentInfo['semester'];
         } else {
-            // Buat mahasiswa baru
-            $mahasiswaId = $this->db->insert('mahasiswa', [
+            // Mahasiswa baru - simpan data sementara untuk konfirmasi password
+            $_SESSION['pending_password'] = [
                 'nim' => $studentInfo['nim'],
                 'nama' => $googleUser['nama'],
                 'email' => $googleUser['email'],
-                'google_id' => $googleUser['google_id'],
                 'foto' => $googleUser['foto'],
+                'google_id' => $googleUser['google_id'],
                 'angkatan' => $studentInfo['angkatan'],
-                'semester_aktif' => $studentInfo['semester'],
-                'access_token' => json_encode($tokenResult['token']),
+                'semester' => $studentInfo['semester'],
+                'token' => $tokenResult['token'],
                 'refresh_token' => $tokenResult['refresh_token'],
-                'token_expires_at' => date('Y-m-d H:i:s', time() + $tokenResult['expires_in'])
-            ]);
-
-            // Buat root folder di Google Drive untuk mahasiswa baru
-            $driveHelper = new GoogleDriveHelper($tokenResult['token'], $tokenResult['refresh_token']);
-            $rootFolder = $driveHelper->createRootFolder($googleUser['nama']);
-
-            if ($rootFolder['success']) {
-                $this->db->update('mahasiswa', $mahasiswaId, [
-                    'gdrive_folder_id' => $rootFolder['id']
-                ]);
-            }
-
-            $mahasiswa = $this->db->findById('mahasiswa', $mahasiswaId);
-
-            // Buat notifikasi selamat datang
-            $this->db->insert('notifikasi', [
-                'mahasiswa_id' => $mahasiswaId,
-                'judul' => 'Selamat Datang di SIAPGRAK',
-                'pesan' => 'Akun Anda telah berhasil dibuat. Mulai organisasikan materi kuliah Anda sekarang!',
-                'tipe' => 'success',
-                'link' => '/dashboard'
-            ]);
+                'expires_in' => $tokenResult['expires_in']
+            ];
+            redirect('confirm-password');
+            return;
         }
 
         // 5. Set session
@@ -176,6 +212,98 @@ class AuthController
         unset($_SESSION['user']);
         session_destroy();
         redirect('login');
+    }
+
+    /**
+     * Halaman konfirmasi password untuk user Google baru
+     */
+    public function confirmPassword()
+    {
+        // Cek apakah ada pending password
+        if (!isset($_SESSION['pending_password'])) {
+            redirect('login');
+        }
+
+        $pending = $_SESSION['pending_password'];
+
+        // Handle form submission
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $password = $_POST['password'] ?? '';
+            $passwordConfirmation = $_POST['password_confirmation'] ?? '';
+
+            // Validasi password
+            if (strlen($password) < 6) {
+                flash('error', 'Password minimal 6 karakter');
+                view('auth.confirm_password', ['pending' => $pending]);
+                return;
+            }
+
+            if ($password !== $passwordConfirmation) {
+                flash('error', 'Konfirmasi password tidak cocok');
+                view('auth.confirm_password', ['pending' => $pending]);
+                return;
+            }
+
+            // Hash password
+            $hashedPassword = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+
+            // Buat mahasiswa baru dengan password
+            $mahasiswaId = $this->db->insert('mahasiswa', [
+                'nim' => $pending['nim'],
+                'nama' => $pending['nama'],
+                'email' => $pending['email'],
+                'google_id' => $pending['google_id'],
+                'foto' => $pending['foto'],
+                'password' => $hashedPassword,
+                'angkatan' => $pending['angkatan'],
+                'semester_aktif' => $pending['semester'],
+                'access_token' => json_encode($pending['token']),
+                'refresh_token' => $pending['refresh_token'],
+                'token_expires_at' => date('Y-m-d H:i:s', time() + $pending['expires_in'])
+            ]);
+
+            // Buat root folder di Google Drive untuk mahasiswa baru
+            $driveHelper = new GoogleDriveHelper($pending['token'], $pending['refresh_token']);
+            $rootFolder = $driveHelper->createRootFolder($pending['nama']);
+
+            if ($rootFolder['success']) {
+                $this->db->update('mahasiswa', $mahasiswaId, [
+                    'gdrive_folder_id' => $rootFolder['id']
+                ]);
+            }
+
+            $mahasiswa = $this->db->findById('mahasiswa', $mahasiswaId);
+
+            // Buat notifikasi selamat datang
+            $this->db->insert('notifikasi', [
+                'mahasiswa_id' => $mahasiswaId,
+                'judul' => 'Selamat Datang di SIAPGRAK',
+                'pesan' => 'Akun Anda telah berhasil dibuat. Mulai organisasikan materi kuliah Anda sekarang!',
+                'tipe' => 'success',
+                'link' => '/dashboard'
+            ]);
+
+            // Clear pending password
+            unset($_SESSION['pending_password']);
+
+            // Set session
+            $_SESSION['user'] = [
+                'id' => $mahasiswa['id'],
+                'nim' => $mahasiswa['nim'],
+                'nama' => $mahasiswa['nama'],
+                'email' => $mahasiswa['email'],
+                'foto' => $mahasiswa['foto'],
+                'angkatan' => $mahasiswa['angkatan'],
+                'semester_aktif' => $mahasiswa['semester_aktif'],
+                'gdrive_folder_id' => $mahasiswa['gdrive_folder_id']
+            ];
+
+            flash('success', 'Registrasi berhasil! Selamat datang, ' . $mahasiswa['nama']);
+            redirect('dashboard');
+            return;
+        }
+
+        view('auth.confirm_password', ['pending' => $pending]);
     }
 
     /**

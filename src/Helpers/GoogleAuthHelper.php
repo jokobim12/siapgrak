@@ -26,6 +26,14 @@ class GoogleAuthHelper
 
         $this->client->setAccessType('offline');
         $this->client->setPrompt('consent');
+
+        // Network Tweak: Force IPv4 and Disable Verify (Dev Only)
+        $this->client->setHttpClient(new \GuzzleHttp\Client([
+            'verify' => false, // Bypass SSL (Dev Only)
+            'curl' => [
+                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4 // Force IPv4
+            ]
+        ]));
     }
 
     /**

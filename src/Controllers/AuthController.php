@@ -213,6 +213,7 @@ class AuthController
         // Handle form submission
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nim = sanitize($_POST['nim'] ?? '');
+            $no_hp = sanitize($_POST['no_hp'] ?? '');
 
             // Validasi NIM (harus 10 digit)
             if (!preg_match('/^\d{10}$/', $nim)) {
@@ -221,11 +222,17 @@ class AuthController
                 return;
             }
 
+            // Validasi No HP
+            if (!preg_match('/^62\d+$/', $no_hp)) {
+                flash('error', 'Nomor HP harus diawali dengan 62 dan hanya berisi angka');
+                view('auth.register_nim', ['pending' => $pending]);
+                return;
+            }
+
             // Hitung angkatan dan semester
             $angkatan = 2000 + intval(substr($nim, 0, 2));
             $semester = hitungSemester($nim);
 
-            // Cek apakah NIM sudah terdaftar
             // Cek apakah NIM sudah terdaftar
             $existing = $this->db->findOne('mahasiswa', ['nim' => $nim]);
             if ($existing) {
@@ -239,6 +246,7 @@ class AuthController
                 'nim' => $nim,
                 'nama' => $pending['nama'],
                 'email' => $pending['email'],
+                'no_hp' => $no_hp,
                 'google_id' => $pending['google_id'],
                 'foto' => $pending['foto'],
                 'angkatan' => $angkatan,

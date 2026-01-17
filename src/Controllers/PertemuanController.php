@@ -86,14 +86,20 @@ class PertemuanController
             $t['sudah_submit'] = !empty($userSubmitted);
 
             $now = new \DateTime();
-            $deadline = new \DateTime($t['deadline']);
-            $diff = $now->diff($deadline);
-            $t['sisa_hari'] = ($now > $deadline) ? -$diff->days : $diff->days;
+            if (!empty($t['deadline'])) {
+                $deadline = new \DateTime($t['deadline']);
+                $diff = $now->diff($deadline);
+                $t['sisa_hari'] = ($now > $deadline) ? -$diff->days : $diff->days;
+            } else {
+                $t['sisa_hari'] = null;
+            }
         }
 
         // Sort tugas by deadline asc
         usort($allTugas, function ($a, $b) {
-            return strtotime($a['deadline']) - strtotime($b['deadline']);
+            $timeA = !empty($a['deadline']) ? strtotime($a['deadline']) : 0;
+            $timeB = !empty($b['deadline']) ? strtotime($b['deadline']) : 0;
+            return $timeA - $timeB;
         });
 
         $tugasList = $allTugas;

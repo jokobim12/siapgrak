@@ -140,7 +140,8 @@ class TugasController
         view('tugas.index', [
             'tugasList' => $tugasList,
             'stats' => $stats,
-            'filter' => $filter
+            'filter' => $filter,
+            'allMatkul' => $allMatkul
         ]);
     }
 
@@ -203,53 +204,25 @@ class TugasController
         }
 
         $tugasId = $_POST['tugas_id'] ?? null;
-        $catatan = sanitize($_POST['catatan'] ?? '');
 
-        if (!$tugasId || !isset($_FILES['file'])) {
-            flash('error', 'Data tidak lengkap');
-            redirect("tugas/detail?id=$tugasId");
+        if (!$tugasId) {
+            flash('error', 'Tugas tidak valid');
+            redirect('tugas');
         }
 
         // Get tugas
         $tugas = $this->db->findById('tugas', $tugasId);
-        if ($tugas) {
-            $pertemuan = $this->db->findById('pertemuan', $tugas['pertemuan_id']);
-            if ($pertemuan) {
-                $tugas['pertemuan_folder_id'] = $pertemuan['folder_gdrive_id'];
-            }
-        }
-
         if (!$tugas) {
             flash('error', 'Tugas tidak ditemukan');
             redirect('tugas');
         }
 
-        // Check if already submitted
+        // Check if already done
         $existing = $this->db->findOne('pengumpulan_tugas', ['tugas_id' => $tugasId, 'mahasiswa_id' => $user['id']]);
 
         if ($existing) {
-            flash('error', 'Anda sudah mengumpulkan tugas ini');
-            redirect("tugas/detail?id=$tugasId");
-        }
-
-        // Get tokens and upload to Drive
-        $authController = new AuthController();
-        $tokens = $authController->getTokens($user['id']);
-
-        if (!$tokens) {
-            flash('error', 'Token tidak valid. Silakan login ulang.');
-            redirect('login');
-        }
-
-        $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
-
-        // Upload to pertemuan folder or root
-        $folderId = $tugas['pertemuan_folder_id'];
-        $uploadResult = $driveHelper->uploadFromPost('file', $folderId);
-
-        if (!$uploadResult['success']) {
-            flash('error', 'Gagal upload: ' . $uploadResult['error']);
-            redirect("tugas/detail?id=$tugasId");
+            // Already done
+            redirect('tugas');
         }
 
         // Determine status
@@ -258,19 +231,37 @@ class TugasController
             $status = 'late';
         }
 
-        // Save submission
+        // Save submission (Mark as Done)
         $this->db->insert('pengumpulan_tugas', [
             'tugas_id' => $tugasId,
             'mahasiswa_id' => $user['id'],
-            'nama_file' => $_FILES['file']['name'],
-            'file_gdrive_id' => $uploadResult['id'],
-            'file_gdrive_url' => $uploadResult['url'],
-            'catatan' => $catatan,
-            'status' => $status
+            'nama_file' => null,
+            'file_gdrive_id' => null,
+            'file_gdrive_url' => null,
+            'catatan' => 'Selesai',
+            'status' => $status,
+            'submitted_at' => date('Y-m-d H:i:s')
         ]);
 
-        flash('success', 'Tugas berhasil dikumpulkan!');
-        redirect("tugas/detail?id=$tugasId");
+        redirect('tugas');
+    }
+
+    public function uncheck()
+    {
+        $user = auth();
+        $tugasId = $_POST['tugas_id'] ?? null;
+
+        if ($tugasId) {
+            // Cari submission
+            $submission = $this->db->findOne('pengumpulan_tugas', ['tugas_id' => $tugasId, 'mahasiswa_id' => $user['id']]);
+
+            if ($submission) {
+                // Delete submission (Mark as Undone)
+                $this->db->delete('pengumpulan_tugas', $submission['id']);
+            }
+        }
+
+        redirect('tugas');
     }
 
     /**
@@ -284,163 +275,56 @@ class TugasController
         $user = auth();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                echo json_encode(['success' => false, 'error' => 'Method not allowed']);
-                return;
-            }
             redirect('tugas');
         }
 
         $pertemuanId = $_POST['pertemuan_id'] ?? null;
+        $mataKuliahId = $_POST['mata_kuliah_id'] ?? null; // New Input
         $judul = sanitize($_POST['judul'] ?? '');
         $deskripsi = sanitize($_POST['deskripsi'] ?? '');
+        $deadline = $_POST['deadline'] ?? null;
+        $redirectUrl = $_POST['redirect_url'] ?? "pertemuan?id=$pertemuanId"; // Default redirect
 
-        if (!$pertemuanId || !$judul || !isset($_FILES['file'])) {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                echo json_encode(['success' => false, 'error' => 'Data tidak lengkap']);
-                return;
+        // Logic Auto-Pertemuan jika input dari Menu Tugas
+        if (!$pertemuanId && $mataKuliahId) {
+            // Cari pertemuan terakhir dari MK ini
+            $allPertemuan = $this->db->find('pertemuan', ['mata_kuliah_id' => $mataKuliahId]);
+
+            if (!empty($allPertemuan)) {
+                // Ambil yang terakhir (anggap array terurut atau sort dulu)
+                usort($allPertemuan, function ($a, $b) {
+                    return $b['nomor_pertemuan'] - $a['nomor_pertemuan'];
+                });
+                $pertemuanId = $allPertemuan[0]['id'];
+            } else {
+                // Jika belum ada pertemuan, harus buat satu?
+                // Kita skip dulu buat otomatis yang kompleks, return error saja suruh buat pertemuan dulu
+                flash('error', 'Mata Kuliah ini belum memiliki pertemuan. Silakan buat pertemuan pertama dulu di menu Mata Kuliah.');
+                redirect('tugas');
             }
-            flash('error', 'Data tidak lengkap');
-            redirect("pertemuan?id=$pertemuanId");
+            $redirectUrl = 'tugas'; // Redirect balik ke menu tugas
         }
 
-        // Get pertemuan to find folder
-        $pertemuan = $this->db->findById('pertemuan', $pertemuanId);
-        if (!$pertemuan) {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                echo json_encode(['success' => false, 'error' => 'Pertemuan tidak ditemukan']);
-                return;
-            }
-            flash('error', 'Pertemuan tidak ditemukan');
-            redirect('mata-kuliah');
+        if (!$pertemuanId || !$judul || !$deadline) {
+            flash('error', 'Data tidak lengkap. Judul, Mata Kuliah/Pertemuan, dan Deadline wajib diisi.');
+            redirect('tugas');
         }
-
-        // Get tokens
-        $authController = new AuthController();
-        $tokens = $authController->getTokens($user['id']);
-
-        if (!$tokens) {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                echo json_encode(['success' => false, 'error' => 'Token invalid']);
-                return;
-            }
-            redirect('login');
-        }
-
-        $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
-
-        // Get existing folder ID
-        $pertemuanFolderId = $pertemuan['folder_gdrive_id'];
-
-        // Verify if folder actually exists in Drive (handle stale IDs)
-        if ($pertemuanFolderId) {
-            $checkFolder = $driveHelper->getFile($pertemuanFolderId);
-            if (!$checkFolder['success']) {
-                $pertemuanFolderId = null; // ID is invalid, force rebuild
-            }
-        }
-
-        if (!$pertemuanFolderId) {
-            // Rebuild folder structure (Semester -> MK -> Pertemuan)
-
-            // 1. Check MK
-            $mk = $this->db->findById('mata_kuliah', $pertemuan['mata_kuliah_id']);
-            if (!$mk) {
-                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                    echo json_encode(['success' => false, 'error' => 'Mata Kuliah tidak ditemukan']);
-                    return;
-                }
-                flash('error', 'Mata Kuliah tidak ditemukan');
-                redirect("pertemuan?id=$pertemuanId");
-            }
-
-            // 2. Check Semester
-            $semester = $this->db->findById('semester', $mk['semester_id']);
-
-            // Ensure semester folder
-            $semesterFolder = $driveHelper->findOrCreateFolder($semester['nama'], null);
-            if (!$semesterFolder['success']) {
-                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                    echo json_encode(['success' => false, 'error' => 'Gagal buat folder semester: ' . $semesterFolder['error']]);
-                    return;
-                }
-                flash('error', 'Gagal buat folder semester');
-                redirect("pertemuan?id=$pertemuanId");
-            }
-
-            // Ensure MK folder
-            $mkFolder = $driveHelper->findOrCreateFolder($mk['nama_mk'], $semesterFolder['id']);
-            if (!$mkFolder['success']) {
-                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                    echo json_encode(['success' => false, 'error' => 'Gagal buat folder MK: ' . $mkFolder['error']]);
-                    return;
-                }
-                flash('error', 'Gagal buat folder MK');
-                redirect("pertemuan?id=$pertemuanId");
-            }
-            $this->db->update('mata_kuliah', $mk['id'], ['folder_gdrive_id' => $mkFolder['id']]);
-
-            // Ensure Pertemuan folder
-            $pertemuanFolderName = "Pertemuan " . $pertemuan['nomor_pertemuan'];
-            $pFolder = $driveHelper->findOrCreateFolder($pertemuanFolderName, $mkFolder['id']);
-            if (!$pFolder['success']) {
-                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                    echo json_encode(['success' => false, 'error' => 'Gagal buat folder Pertemuan: ' . $pFolder['error']]);
-                    return;
-                }
-                flash('error', 'Gagal buat folder Pertemuan');
-                redirect("pertemuan?id=$pertemuanId");
-            }
-
-            $pertemuanFolderId = $pFolder['id'];
-            $this->db->update('pertemuan', $pertemuan['id'], ['folder_gdrive_id' => $pertemuanFolderId]);
-        }
-
-        // Ensure Tugas folder inside Pertemuan
-        $tugasFolder = $driveHelper->findOrCreateFolder('Tugas', $pertemuanFolderId);
-        if (!$tugasFolder['success']) {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                echo json_encode(['success' => false, 'error' => 'Gagal buat folder Tugas: ' . $tugasFolder['error']]);
-                return;
-            }
-            flash('error', 'Gagal buat folder Tugas');
-            redirect("pertemuan?id=$pertemuanId");
-        }
-
-        $uploadResult = $driveHelper->uploadFromPost('file', $tugasFolder['id']);
-
-        if (!$uploadResult['success']) {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                echo json_encode(['success' => false, 'error' => $uploadResult['error']]);
-                return;
-            }
-            flash('error', 'Gagal upload: ' . $uploadResult['error']);
-            redirect("pertemuan?id=$pertemuanId");
-        }
-
-        $file = $_FILES['file'];
-        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
 
         $this->db->insert('tugas', [
             'pertemuan_id' => $pertemuanId,
             'judul' => $judul,
             'deskripsi' => $deskripsi,
-            'nama_file' => $file['name'],
-            'tipe_file' => $extension,
-            'ukuran_file' => $file['size'],
-            'file_gdrive_id' => $uploadResult['id'],
-            'file_gdrive_url' => $uploadResult['url'],
             'created_by' => $user['id'],
-            'deadline' => date('Y-m-d H:i:s') // Dummy
+            'deadline' => $deadline,
+            'nama_file' => null,
+            'tipe_file' => null,
+            'ukuran_file' => 0,
+            'file_gdrive_id' => null,
+            'file_gdrive_url' => null
         ]);
 
-        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-            echo json_encode(['success' => true]);
-            return;
-        }
-
-        flash('success', 'Tugas berhasil ditambahkan');
-        redirect("pertemuan?id=$pertemuanId");
+        flash('success', 'Tugas / Todo berhasil ditambahkan!');
+        redirect($redirectUrl);
     }
 
     /**
@@ -475,5 +359,143 @@ class TugasController
 
         flash('success', 'Tugas berhasil dihapus');
         redirect("pertemuan?id=" . $tugas['pertemuan_id']);
+    }
+    public function update()
+    {
+        $user = auth();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('tugas');
+        }
+
+        $id = $_POST['id'] ?? null;
+        $judul = sanitize($_POST['judul'] ?? '');
+        $deskripsi = sanitize($_POST['deskripsi'] ?? '');
+        $deadline = $_POST['deadline'] ?? null;
+
+        if (!$id || !$judul || !$deadline) {
+            flash('error', 'Data tidak lengkap');
+            redirect("tugas/detail?id=$id");
+        }
+
+        $tugas = $this->db->findById('tugas', $id);
+        if (!$tugas) {
+            flash('error', 'Tugas tidak ditemukan');
+            redirect('tugas');
+        }
+
+        $this->db->update('tugas', $id, [
+            'judul' => $judul,
+            'deskripsi' => $deskripsi,
+            'deadline' => $deadline
+        ]);
+
+        flash('success', 'Tugas berhasil diperbarui');
+        redirect("tugas/detail?id=$id");
+    }
+    /**
+     * Upload File Tugas (Arsip/Submission)
+     * Diakses dari Pertemuan > Detail
+     */
+    public function upload()
+    {
+        error_reporting(E_ALL);
+        ini_set('display_errors', 0); // Suppress HTML errors for AJAX
+        header('Content-Type: application/json');
+
+        try {
+            $user = auth();
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                throw new Exception('Invalid request method');
+            }
+
+            $pertemuanId = $_POST['pertemuan_id'] ?? null;
+            $judul = sanitize($_POST['judul'] ?? '');
+            $deskripsi = sanitize($_POST['deskripsi'] ?? '');
+
+            if (!$pertemuanId || empty($_FILES['file']['name'])) {
+                throw new Exception('Data tidak lengkap. Pertemuan ID dan File wajib diisi.');
+            }
+
+            $pertemuan = $this->db->findById('pertemuan', $pertemuanId);
+            if (!$pertemuan) {
+                throw new Exception('Pertemuan tidak ditemukan');
+            }
+
+            // Google Drive Logic
+            $authController = new AuthController();
+            $tokens = $authController->getTokens($user['id']);
+
+            if (!$tokens) {
+                throw new Exception('Token autentikasi Google tidak valid/kadaluarsa. Login ulang.');
+            }
+
+            $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
+
+            // 1. Dapatkan/Buat struktur folder dasar (sama dengan Materi)
+            $pertemuanFolderId = $pertemuan['folder_gdrive_id'];
+
+            if (!$pertemuanFolderId) {
+                // ... Rebuild logic if missing (Copy from PertemuanController logic basically)
+                // Simplify: Assume PertemuanController handles folder creation usually, 
+                // but for robustness we re-implement quick check or fail.
+                // Let's implement full rebuild for safety.
+
+                $mkInfo = $this->db->findById('mata_kuliah', $pertemuan['mata_kuliah_id']);
+                if (!$mkInfo) throw new Exception('MK tidak ditemukan');
+
+                $sem = $this->db->findById('semester', $mkInfo['semester_id']);
+                $semesterName = $sem ? $sem['nama'] : 'Semester ???';
+
+                // Root -> Semester
+                $semFolder = $driveHelper->findOrCreateFolder($semesterName, null);
+                if (!$semFolder['success']) throw new Exception('Gagal folder Semester: ' . $semFolder['error']);
+
+                // Semester -> MK
+                $mkFolder = $driveHelper->findOrCreateFolder($mkInfo['nama_mk'], $semFolder['id']);
+                if (!$mkFolder['success']) throw new Exception('Gagal folder MK: ' . $mkFolder['error']);
+
+                // MK -> Pertemuan
+                $pFolder = $driveHelper->findOrCreateFolder("Pertemuan " . $pertemuan['nomor_pertemuan'], $mkFolder['id']);
+                if (!$pFolder['success']) throw new Exception('Gagal folder Pertemuan: ' . $pFolder['error']);
+
+                $pertemuanFolderId = $pFolder['id'];
+                $this->db->update('pertemuan', $pertemuanId, ['folder_gdrive_id' => $pertemuanFolderId]);
+            }
+
+            // 2. Buat subfolder "Tugas" di dalam folder Pertemuan
+            $tugasFolder = $driveHelper->findOrCreateFolder('Tugas', $pertemuanFolderId);
+            if (!$tugasFolder['success']) {
+                throw new Exception('Gagal membuat folder Tugas: ' . $tugasFolder['error']);
+            }
+
+            // 3. Upload File ke folder Tugas
+            $uploadResult = $driveHelper->uploadFromPost('file', $tugasFolder['id']);
+            if (!$uploadResult['success']) {
+                throw new Exception('Gagal upload ke Drive: ' . $uploadResult['error']);
+            }
+
+            // 4. Simpan ke Database
+            $file = $_FILES['file'];
+            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+
+            $this->db->insert('tugas', [
+                'pertemuan_id' => $pertemuanId,
+                'judul' => $judul,
+                'deskripsi' => $deskripsi,
+                'created_by' => $user['id'],
+                'deadline' => null, // Arsip tugas biasanya tidak butuh deadline sistem todo
+                'nama_file' => $file['name'],
+                'tipe_file' => $extension,
+                'ukuran_file' => $file['size'],
+                'file_gdrive_id' => $uploadResult['id'],
+                'file_gdrive_url' => $uploadResult['url']
+            ]);
+
+            echo json_encode(['success' => true, 'message' => 'File tugas berhasil diupload']);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
     }
 }

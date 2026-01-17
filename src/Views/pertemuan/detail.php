@@ -158,7 +158,7 @@ ob_start();
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <form id="formTugas" method="POST" action="<?= base_url('tugas/create') ?>" enctype="multipart/form-data">
+        <form id="formTugas" method="POST" action="<?= base_url('tugas/upload') ?>" enctype="multipart/form-data">
             <div class="modal-body space-y-4">
                 <input type="hidden" name="pertemuan_id" value="<?= $pertemuan['id'] ?>">
                 <div>

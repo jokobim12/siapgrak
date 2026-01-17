@@ -72,6 +72,17 @@
                         <p class="text-xs text-gray-500 mt-2 text-center">Masukkan 10 digit NIM Anda</p>
                     </div>
 
+                    <div class="mb-6">
+                        <label class="label">Nomor HP (WhatsApp)</label>
+                        <input type="text"
+                            name="no_hp"
+                            class="input text-center text-xl tracking-widest font-mono"
+                            placeholder="628123456789"
+                            pattern="62\d+"
+                            required>
+                        <p class="text-xs text-gray-500 mt-2 text-center">Format: 628... (Gunakan kode negara 62)</p>
+                    </div>
+
                     <button type="submit" class="btn-primary w-full">
                         <i class="fas fa-check mr-2"></i>
                         Lanjutkan

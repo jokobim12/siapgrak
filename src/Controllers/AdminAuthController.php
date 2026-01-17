@@ -31,10 +31,7 @@ class AdminAuthController
             $username = sanitize($_POST['username'] ?? '');
             $password = $_POST['password'] ?? '';
 
-            $admin = $this->db->fetch(
-                "SELECT * FROM admin WHERE username = ?",
-                [$username]
-            );
+            $admin = $this->db->findOne('admin', ['username' => $username]);
 
             if ($admin && password_verify($password, $admin['password'])) {
                 $_SESSION['admin'] = [

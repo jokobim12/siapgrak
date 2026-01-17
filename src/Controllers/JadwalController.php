@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Jadwal Controller
+ * Jadwal Controller - Updated for Self-Manage
  */
 
 namespace App\Controllers;
@@ -19,45 +19,57 @@ class JadwalController
     }
 
     /**
-     * Halaman jadwal mingguan
+     * Jadwal mingguan
      */
     public function index()
     {
         $user = auth();
 
-        $hariList = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
-        $jadwalByHari = [];
+        // Get jadwal grouped by day
+        // Get jadwal logic manually
+        $allJadwal = $this->db->all('jadwal');
+        $allMatkul = $this->db->find('mata_kuliah', ['mahasiswa_id' => $user['id']]);
+        $userMatkulIds = array_column($allMatkul, 'id');
 
-        foreach ($hariList as $hari) {
-            $jadwalByHari[$hari] = $this->db->fetchAll(
-                "SELECT j.*, mk.nama_mk, mk.kode_mk, mk.dosen, k.nama_kelas
-                 FROM jadwal j
-                 JOIN mata_kuliah mk ON mk.id = j.mata_kuliah_id
-                 JOIN kelas k ON k.id = j.kelas_id
-                 JOIN kelas_mahasiswa km ON km.kelas_id = k.id
-                 WHERE km.mahasiswa_id = ? AND j.hari = ?
-                 ORDER BY j.jam_mulai ASC",
-                [$user['id'], $hari]
-            );
+        $jadwal = [];
+        foreach ($allJadwal as $j) {
+            if (in_array($j['mata_kuliah_id'], $userMatkulIds)) {
+                // Find MK name
+                foreach ($allMatkul as $mk) {
+                    if ($mk['id'] == $j['mata_kuliah_id']) {
+                        $j['nama_mk'] = $mk['nama_mk'];
+                        break;
+                    }
+                }
+                $jadwal[] = $j;
+            }
         }
 
-        // Get today's date info
-        $hariIni = strtolower(date('l'));
-        $hariMap = [
-            'monday' => 'senin',
-            'tuesday' => 'selasa',
-            'wednesday' => 'rabu',
-            'thursday' => 'kamis',
-            'friday' => 'jumat',
-            'saturday' => 'sabtu',
-            'sunday' => 'minggu'
+        // Custom sort by day and time
+        usort($jadwal, function ($a, $b) {
+            $days = ['senin' => 1, 'selasa' => 2, 'rabu' => 3, 'kamis' => 4, 'jumat' => 5, 'sabtu' => 6];
+            $dayOrder = $days[strtolower($a['hari'])] - $days[strtolower($b['hari'])];
+            if ($dayOrder !== 0) return $dayOrder;
+
+            return strtotime($a['jam_mulai']) - strtotime($b['jam_mulai']);
+        });
+
+        // Group by day
+        $jadwalByDay = [
+            'senin' => [],
+            'selasa' => [],
+            'rabu' => [],
+            'kamis' => [],
+            'jumat' => [],
+            'sabtu' => []
         ];
-        $hariIniId = $hariMap[$hariIni] ?? null;
+
+        foreach ($jadwal as $j) {
+            $jadwalByDay[$j['hari']][] = $j;
+        }
 
         view('jadwal.index', [
-            'jadwalByHari' => $jadwalByHari,
-            'hariList' => $hariList,
-            'hariIni' => $hariIniId
+            'jadwalByDay' => $jadwalByDay
         ]);
     }
 }

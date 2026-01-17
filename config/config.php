@@ -1,4 +1,5 @@
 <?php
+
 /**
  * SIAPGRAK - Sistem Organisasi Materi Kuliah
  * File Konfigurasi Utama
@@ -56,20 +57,24 @@ if (APP_DEBUG) {
 date_default_timezone_set('Asia/Makassar');
 
 // Helper functions
-function base_url($path = '') {
+function base_url($path = '')
+{
     return rtrim(APP_URL, '/') . '/' . ltrim($path, '/');
 }
 
-function asset($path) {
+function asset($path)
+{
     return base_url('css/' . ltrim($path, '/'));
 }
 
-function redirect($path) {
+function redirect($path)
+{
     header('Location: ' . base_url($path));
     exit;
 }
 
-function view($name, $data = []) {
+function view($name, $data = [])
+{
     extract($data);
     $viewFile = VIEWS_PATH . '/' . str_replace('.', '/', $name) . '.php';
     if (file_exists($viewFile)) {
@@ -79,11 +84,13 @@ function view($name, $data = []) {
     }
 }
 
-function old($key, $default = '') {
+function old($key, $default = '')
+{
     return $_SESSION['old'][$key] ?? $default;
 }
 
-function flash($key, $value = null) {
+function flash($key, $value = null)
+{
     if ($value !== null) {
         $_SESSION['flash'][$key] = $value;
     } else {
@@ -93,42 +100,61 @@ function flash($key, $value = null) {
     }
 }
 
-function auth() {
+function auth()
+{
     return $_SESSION['user'] ?? null;
 }
 
-function isLoggedIn() {
+function isLoggedIn()
+{
     return isset($_SESSION['user']);
 }
 
-function csrf_token() {
+function csrf_token()
+{
     if (!isset($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
     return $_SESSION['csrf_token'];
 }
 
-function csrf_field() {
+function csrf_field()
+{
     return '<input type="hidden" name="csrf_token" value="' . csrf_token() . '">';
 }
 
-function verify_csrf($token) {
+function verify_csrf($token)
+{
     return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
-function sanitize($input) {
+function sanitize($input)
+{
     return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
 }
 
-function formatDate($date, $format = 'd M Y') {
+function formatDate($date, $format = 'd M Y')
+{
     return date($format, strtotime($date));
 }
 
-function formatDateTime($date, $format = 'd M Y H:i') {
+function formatDateTime($date, $format = 'd M Y H:i')
+{
     return date($format, strtotime($date));
 }
 
-function getFileIcon($extension) {
+function formatBytes($bytes, $precision = 2)
+{
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
+    $bytes /= pow(1024, $pow);
+    return round($bytes, $precision) . ' ' . $units[$pow];
+}
+
+function getFileIcon($extension)
+{
     $icons = [
         'pdf' => 'fa-file-pdf text-red-500',
         'doc' => 'fa-file-word text-blue-500',
@@ -154,16 +180,17 @@ function getFileIcon($extension) {
  * Menghitung semester berdasarkan NIM
  * Format NIM: 24XXXXXXX (2 digit pertama = tahun angkatan)
  */
-function hitungSemester($nim) {
+function hitungSemester($nim)
+{
     $tahun_angkatan = 2000 + intval(substr($nim, 0, 2));
     $tahun_sekarang = intval(date('Y'));
     $bulan_sekarang = intval(date('n'));
-    
+
     // Semester ganjil: September - Februari (bulan 9-2)
     // Semester genap: Maret - Agustus (bulan 3-8)
-    
+
     $tahun_berjalan = $tahun_sekarang - $tahun_angkatan;
-    
+
     // Jika bulan sekarang >= September, berarti sudah masuk semester ganjil tahun berikutnya
     if ($bulan_sekarang >= 9) {
         $semester = ($tahun_berjalan * 2) + 1;
@@ -174,7 +201,7 @@ function hitungSemester($nim) {
         // Januari - Februari = masih semester ganjil tahun sebelumnya
         $semester = (($tahun_berjalan - 1) * 2) + 1;
     }
-    
+
     return max(1, $semester);
 }
 
@@ -182,7 +209,8 @@ function hitungSemester($nim) {
  * Ekstrak NIM dari email Politala
  * Format: 2401301001@mhs.politala.ac.id atau 2401301001 Joko bimantaro@mhs.politala.ac.id
  */
-function extractNIM($email) {
+function extractNIM($email)
+{
     // Pattern untuk email Politala
     if (preg_match('/^(\d{10})/', $email, $matches)) {
         return $matches[1];

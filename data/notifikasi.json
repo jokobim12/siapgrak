@@ -1,0 +1,11 @@
+[
+    {
+        "mahasiswa_id": 1,
+        "judul": "Selamat Datang di SIAPGRAK",
+        "pesan": "Akun Anda telah berhasil dibuat. Mulai organisasikan materi kuliah Anda sekarang!",
+        "tipe": "success",
+        "link": "\/dashboard",
+        "id": 1,
+        "created_at": "2026-01-17 15:29:27"
+    }
+]

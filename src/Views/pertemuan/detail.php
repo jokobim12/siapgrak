@@ -1,291 +1,266 @@
 <?php
 
 /**
- * Pertemuan Detail View
- * Dengan upload materi dan daftar tugas
+ * Detail Pertemuan
  */
-$title = "Pertemuan {$pertemuan['nomor_pertemuan']} - {$pertemuan['nama_mk']}";
-$pageTitle = "P{$pertemuan['nomor_pertemuan']} - {$pertemuan['nama_mk']}";
+$title = 'P' . $pertemuan['nomor_pertemuan'] . ' - ' . $pertemuan['nama_mk'];
 ob_start();
 ?>
 
-<div class="space-y-6">
-    <!-- Breadcrumb -->
-    <nav class="flex items-center gap-2 text-sm text-gray-500">
-        <a href="<?= base_url('mata-kuliah') ?>" class="hover:text-primary-600">Mata Kuliah</a>
-        <i class="fas fa-chevron-right text-xs"></i>
-        <a href="<?= base_url('mata-kuliah/detail?id=' . $pertemuan['mata_kuliah_id']) ?>" class="hover:text-primary-600">
-            <?= $pertemuan['nama_mk'] ?>
-        </a>
-        <i class="fas fa-chevron-right text-xs"></i>
-        <span class="text-gray-900">Pertemuan <?= $pertemuan['nomor_pertemuan'] ?></span>
-    </nav>
-
+<div class="space-y-4 pb-20 lg:pb-0">
     <!-- Header -->
-    <div class="card p-6">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <span class="badge-primary mb-2">Pertemuan <?= $pertemuan['nomor_pertemuan'] ?></span>
-                <h1 class="text-2xl font-bold text-gray-900"><?= $pertemuan['judul'] ?: "Pertemuan {$pertemuan['nomor_pertemuan']}" ?></h1>
-                <p class="text-gray-500 mt-1"><?= $pertemuan['nama_mk'] ?> (<?= $pertemuan['kode_mk'] ?>)</p>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="openUploadModal()" class="btn-primary">
-                    <i class="fas fa-upload mr-2"></i>
-                    Upload Materi
-                </button>
-                <button onclick="openTugasModal()" class="btn-outline">
-                    <i class="fas fa-plus mr-2"></i>
-                    Tambah Tugas
-                </button>
-            </div>
+    <div class="flex items-center gap-4">
+        <a href="<?= base_url('mata-kuliah/detail?id=' . $pertemuan['mata_kuliah_id']) ?>" class="p-2 -ml-2 text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div class="flex-1 min-w-0">
+            <h1 class="text-xl font-bold text-gray-800">Pertemuan <?= $pertemuan['nomor_pertemuan'] ?></h1>
+            <p class="text-sm text-gray-500"><?= $pertemuan['nama_mk'] ?></p>
+        </div>
+    </div>
+
+    <!-- Materi Section -->
+    <div class="card">
+        <div class="card-header flex items-center justify-between">
+            <h2 class="font-semibold text-gray-800">
+                <i class="fas fa-file-alt text-primary-600 mr-2"></i>Materi (<?= count($materiList) ?>)
+            </h2>
+            <button onclick="document.getElementById('uploadModal').classList.remove('hidden')" class="btn-primary btn-sm">
+                <i class="fas fa-upload mr-1"></i>Upload
+            </button>
         </div>
 
-        <?php if ($pertemuan['deskripsi']): ?>
-            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                <p class="text-gray-600"><?= nl2br($pertemuan['deskripsi']) ?></p>
+        <?php if (!empty($materiList)): ?>
+            <div class="divide-y divide-gray-100">
+                <?php foreach ($materiList as $m): ?>
+                    <div class="p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-file text-blue-600"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-gray-800 truncate"><?= $m['judul'] ?></p>
+                            <p class="text-xs text-gray-500"><?= $m['nama_file'] ?> · <?= formatBytes($m['ukuran_file']) ?></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a href="<?= $m['file_gdrive_url'] ?>" target="_blank" class="p-2 text-primary-600 hover:bg-primary-50 rounded-lg">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                            <form method="POST" action="<?= base_url('pertemuan/delete-materi') ?>" onsubmit="return confirm('Hapus materi ini?')">
+                                <input type="hidden" name="id" value="<?= $m['id'] ?>">
+                                <button class="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <div class="empty-state py-8">
+                <i class="fas fa-folder-open empty-state-icon"></i>
+                <p class="text-gray-500">Belum ada materi</p>
             </div>
         <?php endif; ?>
     </div>
 
-    <div class="grid lg:grid-cols-2 gap-6">
-        <!-- Materi Section -->
-        <div class="card">
-            <div class="p-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 class="font-semibold text-gray-900">
-                    <i class="fas fa-file-alt text-primary-500 mr-2"></i>
-                    Materi (<?= count($materiList) ?>)
-                </h2>
-            </div>
+    <!-- Tugas Section -->
+    <div class="card">
+        <div class="card-header flex items-center justify-between">
+            <h2 class="font-semibold text-gray-800">
+                <i class="fas fa-tasks text-amber-600 mr-2"></i>Tugas (<?= count($tugasList) ?>)
+            </h2>
+            <button onclick="document.getElementById('tugasModal').classList.remove('hidden')" class="btn-secondary btn-sm">
+                <i class="fas fa-plus mr-1"></i>Tambah
+            </button>
+        </div>
 
+        <?php if (!empty($tugasList)): ?>
             <div class="divide-y divide-gray-100">
-                <?php if (!empty($materiList)): ?>
-                    <?php foreach ($materiList as $materi): ?>
-                        <div class="p-4 hover:bg-gray-50 transition-colors group">
-                            <div class="flex items-start gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                    <i class="fas <?= getFileIcon($materi['tipe_file']) ?>"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-medium text-gray-900 truncate"><?= $materi['judul'] ?></h4>
-                                    <p class="text-sm text-gray-500"><?= $materi['nama_file'] ?></p>
-                                    <div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                                        <span><?= $materi['uploader_nama'] ?></span>
-                                        <span><?= formatDateTime($materi['created_at']) ?></span>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <a href="<?= $materi['file_gdrive_url'] ?>" target="_blank"
-                                        class="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </a>
-                                    <?php if ($materi['uploaded_by'] == auth()['id']): ?>
-                                        <button onclick="deleteMateri(<?= $materi['id'] ?>)"
-                                            class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
+                <?php foreach ($tugasList as $t): ?>
+                    <div class="p-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-tasks text-amber-600"></i>
                         </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="p-8 text-center text-gray-500">
-                        <i class="fas fa-folder-open text-4xl mb-3 text-gray-300"></i>
-                        <p>Belum ada materi</p>
-                        <button onclick="openUploadModal()" class="btn-primary mt-4">
-                            <i class="fas fa-upload mr-2"></i>
-                            Upload Materi Pertama
-                        </button>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-gray-800 truncate"><?= $t['judul'] ?></p>
+                            <p class="text-xs text-gray-500"><?= $t['nama_file'] ?? 'File tidak tersedia' ?> · <?= isset($t['ukuran_file']) ? formatBytes($t['ukuran_file']) : '-' ?></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <?php if (isset($t['file_gdrive_url'])): ?>
+                                <a href="<?= $t['file_gdrive_url'] ?>" target="_blank" class="p-2 text-primary-600 hover:bg-primary-50 rounded-lg">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                            <?php endif; ?>
+                            <form method="POST" action="<?= base_url('tugas/delete') ?>" onsubmit="return confirm('Hapus tugas ini?')">
+                                <input type="hidden" name="id" value="<?= $t['id'] ?>">
+                                <button class="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
                     </div>
-                <?php endif; ?>
+                <?php endforeach; ?>
             </div>
-        </div>
-
-        <!-- Tugas Section -->
-        <div class="card">
-            <div class="p-4 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">
-                    <i class="fas fa-tasks text-amber-500 mr-2"></i>
-                    Tugas (<?= count($tugasList) ?>)
-                </h2>
+        <?php else: ?>
+            <div class="empty-state py-8">
+                <i class="fas fa-clipboard empty-state-icon"></i>
+                <p class="text-gray-500">Belum ada tugas</p>
             </div>
-
-            <div class="divide-y divide-gray-100">
-                <?php if (!empty($tugasList)): ?>
-                    <?php foreach ($tugasList as $tugas): ?>
-                        <a href="<?= base_url('tugas/detail?id=' . $tugas['id']) ?>"
-                            class="block p-4 hover:bg-gray-50 transition-colors">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2">
-                                        <h4 class="font-medium text-gray-900"><?= $tugas['judul'] ?></h4>
-                                        <?php if ($tugas['sudah_submit']): ?>
-                                            <span class="badge-success">Sudah</span>
-                                        <?php elseif ($tugas['sisa_hari'] < 0): ?>
-                                            <span class="badge-danger">Terlambat</span>
-                                        <?php elseif ($tugas['sisa_hari'] <= 1): ?>
-                                            <span class="badge-warning">Segera!</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <p class="text-sm text-gray-500 mt-1 line-clamp-2"><?= $tugas['deskripsi'] ?></p>
-                                </div>
-                                <div class="text-right ml-4">
-                                    <p class="text-sm font-medium <?= $tugas['sisa_hari'] < 0 ? 'text-red-600' : 'text-gray-900' ?>">
-                                        <?= formatDate($tugas['deadline']) ?>
-                                    </p>
-                                    <p class="text-xs text-gray-500"><?= date('H:i', strtotime($tugas['deadline'])) ?> WITA</p>
-                                </div>
-                            </div>
-                        </a>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="p-8 text-center text-gray-500">
-                        <i class="fas fa-clipboard-list text-4xl mb-3 text-gray-300"></i>
-                        <p>Belum ada tugas</p>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
+        <?php endif; ?>
     </div>
 </div>
 
 <!-- Upload Modal -->
-<div id="uploadModal" class="hidden">
-    <div class="modal-overlay" onclick="closeUploadModal()"></div>
-    <div class="modal p-6">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-semibold text-gray-900">Upload Materi</h3>
-            <button onclick="closeUploadModal()" class="p-2 hover:bg-gray-100 rounded-lg">
-                <i class="fas fa-times text-gray-500"></i>
+<div id="uploadModal" class="hidden fixed inset-0 z-50">
+    <div class="modal-overlay" onclick="this.parentElement.classList.add('hidden')"></div>
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="font-semibold text-gray-800">Upload Materi</h3>
+            <button onclick="this.closest('#uploadModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
             </button>
         </div>
-
-        <form action="<?= base_url('pertemuan/upload') ?>" method="POST" enctype="multipart/form-data">
-            <?= csrf_field() ?>
-            <input type="hidden" name="pertemuan_id" value="<?= $pertemuan['id'] ?>">
-
-            <div class="space-y-4">
+        <form id="formMateri" method="POST" action="<?= base_url('pertemuan/upload') ?>" enctype="multipart/form-data">
+            <div class="modal-body space-y-4">
+                <input type="hidden" name="pertemuan_id" value="<?= $pertemuan['id'] ?>">
                 <div>
                     <label class="label">Judul Materi</label>
-                    <input type="text" name="judul" class="input" placeholder="Contoh: Slide Pertemuan 1" required>
+                    <input type="text" name="judul" class="input" required>
                 </div>
-
                 <div>
                     <label class="label">Deskripsi (Opsional)</label>
-                    <textarea name="deskripsi" class="input" rows="3" placeholder="Deskripsi singkat tentang materi ini..."></textarea>
+                    <textarea name="deskripsi" class="input" rows="2"></textarea>
                 </div>
-
                 <div>
                     <label class="label">File</label>
-                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors cursor-pointer"
-                        onclick="document.getElementById('fileInput').click()">
-                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
-                        <p class="text-gray-600">Klik untuk memilih file</p>
-                        <p class="text-xs text-gray-400 mt-1">PDF, Word, Excel, PowerPoint, Gambar, Video</p>
-                        <p id="selectedFileName" class="text-sm text-primary-600 font-medium mt-2 hidden"></p>
-                    </div>
-                    <input type="file" name="file" id="fileInput" class="hidden" required
-                        onchange="showFileName(this)">
+                    <input type="file" name="file" class="input" required>
                 </div>
             </div>
-
-            <div class="flex gap-3 mt-6">
-                <button type="button" onclick="closeUploadModal()" class="btn-outline flex-1">Batal</button>
-                <button type="submit" class="btn-primary flex-1">
-                    <i class="fas fa-upload mr-2"></i>
-                    Upload
+            <div class="modal-footer">
+                <button type="button" onclick="this.closest('#uploadModal').classList.add('hidden')" class="btn-secondary">Batal</button>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-upload mr-2"></i>Upload
                 </button>
+            </div>
+            <!-- Progress Bar -->
+            <div class="progress-container hidden px-6 pb-6">
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div class="progress-bar bg-primary-600 h-4 rounded-full text-xs font-medium text-blue-100 text-center p-0.5 leading-none transition-all duration-300 ease-out" style="width: 0%"> 0%</div>
+                </div>
             </div>
         </form>
     </div>
 </div>
+</div>
 
 <!-- Tugas Modal -->
-<div id="tugasModal" class="hidden">
-    <div class="modal-overlay" onclick="closeTugasModal()"></div>
-    <div class="modal p-6">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-semibold text-gray-900">Tambah Tugas</h3>
-            <button onclick="closeTugasModal()" class="p-2 hover:bg-gray-100 rounded-lg">
-                <i class="fas fa-times text-gray-500"></i>
+<div id="tugasModal" class="hidden fixed inset-0 z-50">
+    <div class="modal-overlay" onclick="this.parentElement.classList.add('hidden')"></div>
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="font-semibold text-gray-800">Tambah Tugas</h3>
+            <button onclick="this.closest('#tugasModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
             </button>
         </div>
-
-        <form action="<?= base_url('tugas/create') ?>" method="POST">
-            <?= csrf_field() ?>
-            <input type="hidden" name="pertemuan_id" value="<?= $pertemuan['id'] ?>">
-
-            <div class="space-y-4">
+        <form id="formTugas" method="POST" action="<?= base_url('tugas/create') ?>" enctype="multipart/form-data">
+            <div class="modal-body space-y-4">
+                <input type="hidden" name="pertemuan_id" value="<?= $pertemuan['id'] ?>">
                 <div>
                     <label class="label">Judul Tugas</label>
-                    <input type="text" name="judul" class="input" placeholder="Contoh: Tugas Praktikum 1" required>
+                    <input type="text" name="judul" class="input" required placeholder="Contoh: Laporan Akhir">
                 </div>
-
                 <div>
                     <label class="label">Deskripsi</label>
                     <textarea name="deskripsi" class="input" rows="3" placeholder="Deskripsi tugas..."></textarea>
                 </div>
-
                 <div>
-                    <label class="label">Deadline</label>
-                    <input type="datetime-local" name="deadline" class="input" required>
+                    <label class="label">File Tugas</label>
+                    <input type="file" name="file" class="input" required>
                 </div>
             </div>
-
-            <div class="flex gap-3 mt-6">
-                <button type="button" onclick="closeTugasModal()" class="btn-outline flex-1">Batal</button>
-                <button type="submit" class="btn-primary flex-1">
-                    <i class="fas fa-plus mr-2"></i>
-                    Tambah Tugas
+            <div class="modal-footer">
+                <button type="button" onclick="this.closest('#tugasModal').classList.add('hidden')" class="btn-secondary">Batal</button>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-upload mr-2"></i>Upload
                 </button>
+            </div>
+            <!-- Progress Bar -->
+            <div class="progress-container hidden px-6 pb-6">
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div class="progress-bar bg-primary-600 h-4 rounded-full text-xs font-medium text-blue-100 text-center p-0.5 leading-none transition-all duration-300 ease-out" style="width: 0%"> 0%</div>
+                </div>
             </div>
         </form>
     </div>
 </div>
-
-<script>
-    function openUploadModal() {
-        document.getElementById('uploadModal').classList.remove('hidden');
-    }
-
-    function closeUploadModal() {
-        document.getElementById('uploadModal').classList.add('hidden');
-    }
-
-    function openTugasModal() {
-        document.getElementById('tugasModal').classList.remove('hidden');
-    }
-
-    function closeTugasModal() {
-        document.getElementById('tugasModal').classList.add('hidden');
-    }
-
-    function showFileName(input) {
-        const fileName = document.getElementById('selectedFileName');
-        if (input.files.length > 0) {
-            fileName.textContent = input.files[0].name;
-            fileName.classList.remove('hidden');
-        }
-    }
-
-    function deleteMateri(id) {
-        if (confirm('Yakin ingin menghapus materi ini?')) {
-            fetch('<?= base_url('pertemuan/delete-materi') ?>', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: 'id=' + id
-            }).then(r => r.json()).then(data => {
-                if (data.success) location.reload();
-                else alert(data.error);
-            });
-        }
-    }
-</script>
 
 <?php
 $content = ob_get_clean();
 include VIEWS_PATH . '/layouts/main.php';
 ?>
+
+<script>
+    function handleUpload(formId) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const progressBar = form.querySelector('.progress-bar');
+            const progressContainer = form.querySelector('.progress-container');
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            // Reset state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+
+            const formData = new FormData(form);
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.textContent = percentComplete + '%';
+
+                    if (percentComplete === 100) {
+                        submitBtn.innerHTML = '<i class="fas fa-cog fa-spin mr-2"></i>Memproses ke Google Drive...';
+                    }
+                }
+            });
+
+            xhr.addEventListener('load', function() {
+                if (xhr.status === 200) {
+                    // Success
+                    window.location.reload();
+                } else {
+                    // Error
+                    alert('Upload gagal. Silakan coba lagi.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload';
+                    progressContainer.classList.add('hidden');
+                }
+            });
+
+            xhr.addEventListener('error', function() {
+                alert('Terjadi kesalahan jaringan.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload';
+                progressContainer.classList.add('hidden');
+            });
+
+            xhr.open('POST', form.action, true);
+            xhr.send(formData);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        handleUpload('formMateri');
+        handleUpload('formTugas');
+    });
+</script>

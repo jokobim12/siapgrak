@@ -34,62 +34,82 @@ class PertemuanController
             redirect('mata-kuliah');
         }
 
-        // Get pertemuan
-        $pertemuan = $this->db->fetch(
-            "SELECT p.*, mk.nama_mk, mk.kode_mk, mk.dosen, mk.kelas_id, mk.folder_gdrive_id as mk_folder_id,
-                    k.nama_kelas, s.nama as semester_nama
-             FROM pertemuan p
-             JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id
-             JOIN kelas k ON k.id = mk.kelas_id
-             JOIN semester s ON s.id = k.semester_id
-             WHERE p.id = ?",
-            [$id]
-        );
+        // Get pertemuan with ownership check
+        $pertemuan = $this->db->findById('pertemuan', $id);
+        if ($pertemuan) {
+            $mk = $this->db->findOne('mata_kuliah', ['id' => $pertemuan['mata_kuliah_id'], 'mahasiswa_id' => $user['id']]);
+            if ($mk) {
+                $pertemuan['nama_mk'] = $mk['nama_mk'];
+                $pertemuan['mk_folder_id'] = $mk['folder_gdrive_id'];
 
-        if (!$pertemuan) {
-            redirect('mata-kuliah');
+                $semester = $this->db->findById('semester', $mk['semester_id']);
+                $pertemuan['semester_nama'] = $semester ? $semester['nama'] : '';
+            } else {
+                $pertemuan = null; // Not owned by user
+            }
         }
 
-        // Check akses
-        $hasAccess = $this->db->fetch(
-            "SELECT 1 FROM kelas_mahasiswa WHERE kelas_id = ? AND mahasiswa_id = ?",
-            [$pertemuan['kelas_id'], $user['id']]
-        );
-
-        if (!$hasAccess) {
-            flash('error', 'Anda tidak memiliki akses');
+        if (!$pertemuan) {
+            flash('error', 'Pertemuan tidak ditemukan');
             redirect('mata-kuliah');
         }
 
         // Get materi
-        $materiList = $this->db->fetchAll(
-            "SELECT m.*, mhs.nama as uploader_nama
-             FROM materi m
-             JOIN mahasiswa mhs ON mhs.id = m.uploaded_by
-             WHERE m.pertemuan_id = ?
-             ORDER BY m.created_at DESC",
-            [$id]
-        );
+        $allMateri = $this->db->find('materi', ['pertemuan_id' => $id]);
+
+        // Enrich materi with uploader name
+        foreach ($allMateri as &$m) {
+            $uploader = $this->db->findById('mahasiswa', $m['uploaded_by']);
+            $m['uploader_nama'] = $uploader ? $uploader['nama'] : 'Unknown';
+        }
+
+        // Sort materi descending
+        usort($allMateri, function ($a, $b) {
+            return strtotime($b['created_at']) - strtotime($a['created_at']);
+        });
+
+        $materiList = $allMateri;
 
         // Get tugas
-        $tugasList = $this->db->fetchAll(
-            "SELECT t.*,
-                    (SELECT COUNT(*) FROM pengumpulan_tugas WHERE tugas_id = t.id) as total_submit,
-                    (SELECT 1 FROM pengumpulan_tugas WHERE tugas_id = t.id AND mahasiswa_id = ?) as sudah_submit,
-                    DATEDIFF(t.deadline, NOW()) as sisa_hari
-             FROM tugas t
-             WHERE t.pertemuan_id = ?
-             ORDER BY t.deadline ASC",
-            [$user['id'], $id]
-        );
+        $allTugas = $this->db->find('tugas', ['pertemuan_id' => $id]);
+        $pengumpulan = $this->db->all('pengumpulan_tugas');
+
+        foreach ($allTugas as &$t) {
+            $submitted = array_filter($pengumpulan, function ($p) use ($t, $user) {
+                return $p['tugas_id'] == $t['id'];
+            });
+            $t['total_submit'] = count($submitted);
+
+            $userSubmitted = array_filter($submitted, function ($p) use ($user) {
+                return $p['mahasiswa_id'] == $user['id'];
+            });
+            $t['sudah_submit'] = !empty($userSubmitted);
+
+            $now = new \DateTime();
+            $deadline = new \DateTime($t['deadline']);
+            $diff = $now->diff($deadline);
+            $t['sisa_hari'] = ($now > $deadline) ? -$diff->days : $diff->days;
+        }
+
+        // Sort tugas by deadline asc
+        usort($allTugas, function ($a, $b) {
+            return strtotime($a['deadline']) - strtotime($b['deadline']);
+        });
+
+        $tugasList = $allTugas;
 
         // Update progress
-        $this->db->query(
-            "UPDATE progress_mahasiswa 
-             SET pertemuan_selesai = pertemuan_selesai + 1, last_accessed_at = NOW()
-             WHERE mahasiswa_id = ? AND mata_kuliah_id = ? AND pertemuan_selesai < 18",
-            [$user['id'], $pertemuan['mata_kuliah_id']]
-        );
+        $progress = $this->db->findOne('progress_mahasiswa', [
+            'mahasiswa_id' => $user['id'],
+            'mata_kuliah_id' => $pertemuan['mata_kuliah_id']
+        ]);
+
+        if ($progress && $progress['pertemuan_selesai'] < 18) {
+            $this->db->update('progress_mahasiswa', $progress['id'], [
+                'pertemuan_selesai' => $progress['pertemuan_selesai'] + 1,
+                'last_accessed_at' => date('Y-m-d H:i:s')
+            ]);
+        }
 
         view('pertemuan.detail', [
             'pertemuan' => $pertemuan,
@@ -119,13 +139,15 @@ class PertemuanController
         }
 
         // Get pertemuan dan folder
-        $pertemuan = $this->db->fetch(
-            "SELECT p.*, mk.nama_mk, mk.folder_gdrive_id as mk_folder_id
-             FROM pertemuan p
-             JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id
-             WHERE p.id = ?",
-            [$pertemuanId]
-        );
+        $pertemuan = $this->db->findById('pertemuan', $pertemuanId);
+
+        if ($pertemuan) {
+            $mk = $this->db->findById('mata_kuliah', $pertemuan['mata_kuliah_id']);
+            if ($mk) {
+                $pertemuan['nama_mk'] = $mk['nama_mk'];
+                $pertemuan['mk_folder_id'] = $mk['folder_gdrive_id'];
+            }
+        }
 
         if (!$pertemuan) {
             flash('error', 'Pertemuan tidak ditemukan');
@@ -143,32 +165,50 @@ class PertemuanController
 
         $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
 
-        // Get or create folder structure
-        $mahasiswa = $this->db->fetch("SELECT * FROM mahasiswa WHERE id = ?", [$user['id']]);
-        $rootFolderId = $mahasiswa['gdrive_folder_id'];
+        // Get mahasiswa dan info lengkap untuk struktur folder
+        $mahasiswa = $this->db->findById('mahasiswa', $user['id']);
 
-        // Ensure pertemuan folder exists
+        // Get info lengkap untuk nama folder
+        $mkInfo = $this->db->findById('mata_kuliah', $pertemuan['mata_kuliah_id']);
+        if ($mkInfo) {
+            $sem = $this->db->findById('semester', $mkInfo['semester_id']);
+            $mkInfo['semester_nama'] = $sem ? $sem['nama'] : '';
+        }
+
+        // Dapatkan atau buat folder pertemuan dengan struktur:
+        // Semester → Mata Kuliah → Pertemuan (langsung di root Drive)
         $pertemuanFolderId = $pertemuan['folder_gdrive_id'];
 
         if (!$pertemuanFolderId) {
-            // Create folder structure if not exists
-            $folderResult = $driveHelper->createFolder(
-                "P{$pertemuan['nomor_pertemuan']} - {$pertemuan['judul']}",
-                $rootFolderId
-            );
-
-            if ($folderResult['success']) {
-                $pertemuanFolderId = $folderResult['id'];
-                $this->db->update(
-                    'pertemuan',
-                    ['folder_gdrive_id' => $pertemuanFolderId],
-                    'id = ?',
-                    [$pertemuanId]
-                );
-            } else {
-                flash('error', 'Gagal membuat folder: ' . $folderResult['error']);
+            // 1. Cek/buat folder Semester (langsung di root Drive, tanpa parent)
+            $semesterFolderName = $mkInfo['semester_nama'];
+            $semesterFolder = $driveHelper->findOrCreateFolder($semesterFolderName, null);
+            if (!$semesterFolder['success']) {
+                flash('error', 'Gagal membuat folder semester: ' . $semesterFolder['error']);
                 redirect("pertemuan?id=$pertemuanId");
             }
+
+            // 2. Cek/buat folder Mata Kuliah (nama saja, tanpa kode)
+            $mkFolderName = $mkInfo['nama_mk'];
+            $mkFolder = $driveHelper->findOrCreateFolder($mkFolderName, $semesterFolder['id']);
+            if (!$mkFolder['success']) {
+                flash('error', 'Gagal membuat folder mata kuliah: ' . $mkFolder['error']);
+                redirect("pertemuan?id=$pertemuanId");
+            }
+
+            // Update folder_gdrive_id di mata_kuliah
+            $this->db->update('mata_kuliah', $pertemuan['mata_kuliah_id'], ['folder_gdrive_id' => $mkFolder['id']]);
+
+            // 3. Cek/buat folder Pertemuan
+            $pertemuanFolderName = "Pertemuan " . $pertemuan['nomor_pertemuan'];
+            $pFolder = $driveHelper->findOrCreateFolder($pertemuanFolderName, $mkFolder['id']);
+            if (!$pFolder['success']) {
+                flash('error', 'Gagal membuat folder pertemuan: ' . $pFolder['error']);
+                redirect("pertemuan?id=$pertemuanId");
+            }
+
+            $pertemuanFolderId = $pFolder['id'];
+            $this->db->update('pertemuan', $pertemuanId, ['folder_gdrive_id' => $pertemuanFolderId]);
         }
 
         // Upload file
@@ -196,25 +236,34 @@ class PertemuanController
         ]);
 
         // Update progress
-        $this->db->query(
-            "UPDATE progress_mahasiswa 
-             SET materi_selesai = materi_selesai + 1
-             WHERE mahasiswa_id = ? AND mata_kuliah_id = ?",
-            [$user['id'], $pertemuan['mata_kuliah_id']]
-        );
+        $progress = $this->db->findOne('progress_mahasiswa', [
+            'mahasiswa_id' => $user['id'],
+            'mata_kuliah_id' => $pertemuan['mata_kuliah_id']
+        ]);
+        if ($progress) {
+            $this->db->update('progress_mahasiswa', $progress['id'], [
+                'materi_selesai' => $progress['materi_selesai'] + 1
+            ]);
+        }
 
         // Refresh token if needed
         if ($driveHelper->isTokenExpired()) {
             $newToken = $driveHelper->getAccessToken();
+            $newToken = $driveHelper->getAccessToken();
             $this->db->update(
                 'mahasiswa',
+                $user['id'],
                 [
                     'access_token' => json_encode($newToken),
                     'token_expires_at' => date('Y-m-d H:i:s', time() + 3600)
-                ],
-                'id = ?',
-                [$user['id']]
+                ]
             );
+        }
+
+        // Check if AJAX request
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            echo json_encode(['success' => true]);
+            return;
         }
 
         flash('success', 'Materi berhasil diupload');
@@ -230,18 +279,15 @@ class PertemuanController
         $id = $_POST['id'] ?? null;
 
         if (!$id) {
-            echo json_encode(['success' => false, 'error' => 'ID tidak valid']);
-            return;
+            flash('error', 'ID tidak valid');
+            redirect('mata-kuliah');
         }
 
-        $materi = $this->db->fetch(
-            "SELECT * FROM materi WHERE id = ? AND uploaded_by = ?",
-            [$id, $user['id']]
-        );
+        $materi = $this->db->findOne('materi', ['id' => $id, 'uploaded_by' => $user['id']]);
 
         if (!$materi) {
-            echo json_encode(['success' => false, 'error' => 'Materi tidak ditemukan']);
-            return;
+            flash('error', 'Materi tidak ditemukan');
+            redirect('mata-kuliah');
         }
 
         // Delete from Google Drive
@@ -254,8 +300,9 @@ class PertemuanController
         }
 
         // Delete from database
-        $this->db->delete('materi', 'id = ?', [$id]);
+        $this->db->delete('materi', $id);
 
-        echo json_encode(['success' => true]);
+        flash('success', 'Materi berhasil dihapus');
+        redirect("pertemuan?id=" . $materi['pertemuan_id']);
     }
 }

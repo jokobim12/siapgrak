@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Tugas Controller
+ * Tugas Controller - Updated for Self-Manage
  */
 
 namespace App\Controllers;
@@ -28,68 +28,114 @@ class TugasController
     public function index()
     {
         $user = auth();
-        $filter = $_GET['filter'] ?? 'all'; // all, pending, submitted, late
+        $filter = $_GET['filter'] ?? 'all';
 
-        $query = "SELECT t.*, p.nomor_pertemuan, mk.nama_mk, mk.kode_mk, k.nama_kelas,
-                         DATEDIFF(t.deadline, NOW()) as sisa_hari,
-                         pt.id as submission_id, pt.status as submission_status, pt.nilai,
-                         pt.submitted_at
-                  FROM tugas t
-                  JOIN pertemuan p ON p.id = t.pertemuan_id
-                  JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id
-                  JOIN kelas k ON k.id = mk.kelas_id
-                  JOIN kelas_mahasiswa km ON km.kelas_id = k.id
-                  LEFT JOIN pengumpulan_tugas pt ON pt.tugas_id = t.id AND pt.mahasiswa_id = ?
-                  WHERE km.mahasiswa_id = ?";
+        $allTugas = $this->db->all('tugas');
+        $allPertemuan = $this->db->all('pertemuan');
+        $allMatkul = $this->db->find('mata_kuliah', ['mahasiswa_id' => $user['id']]);
+        $allPengumpulan = $this->db->find('pengumpulan_tugas', ['mahasiswa_id' => $user['id']]);
 
-        $params = [$user['id'], $user['id']];
+        // Filter and enrich tugas
+        $userMatkulIds = array_column($allMatkul, 'id');
+        $userPertemuan = array_filter($allPertemuan, function ($p) use ($userMatkulIds) {
+            return in_array($p['mata_kuliah_id'], $userMatkulIds);
+        });
+        $userPertemuanIds = array_column($userPertemuan, 'id');
 
-        switch ($filter) {
-            case 'pending':
-                $query .= " AND pt.id IS NULL AND t.deadline >= NOW()";
-                break;
-            case 'submitted':
-                $query .= " AND pt.id IS NOT NULL";
-                break;
-            case 'late':
-                $query .= " AND pt.id IS NULL AND t.deadline < NOW()";
-                break;
+        $tugasList = [];
+        $now = new \DateTime();
+
+        foreach ($allTugas as $t) {
+            if (!in_array($t['pertemuan_id'], $userPertemuanIds)) continue;
+
+            $pertemuan = null;
+            foreach ($userPertemuan as $p) {
+                if ($p['id'] == $t['pertemuan_id']) {
+                    $pertemuan = $p;
+                    break;
+                }
+            }
+
+            $mk = null;
+            foreach ($allMatkul as $m) {
+                if ($m['id'] == $pertemuan['mata_kuliah_id']) {
+                    $mk = $m;
+                    break;
+                }
+            }
+
+            $submission = null;
+            foreach ($allPengumpulan as $pt) {
+                if ($pt['tugas_id'] == $t['id']) {
+                    $submission = $pt;
+                    break;
+                }
+            }
+
+            $deadline = new \DateTime($t['deadline']);
+            $diff = $now->diff($deadline);
+            $sisa_hari = ($now > $deadline) ? -$diff->days : $diff->days;
+            $isLate = ($sisa_hari < 0 && !$submission);
+
+            $t['nomor_pertemuan'] = $pertemuan['nomor_pertemuan'];
+            $t['nama_mk'] = $mk['nama_mk'];
+            $t['sisa_hari'] = $sisa_hari;
+            $t['submission_id'] = $submission ? $submission['id'] : null;
+            $t['submission_status'] = $submission ? $submission['status'] : null;
+            $t['nilai'] = $submission['nilai'] ?? null;
+            $t['submitted_at'] = $submission['submitted_at'] ?? null;
+
+            $include = false;
+            if ($filter == 'all') $include = true;
+            if ($filter == 'pending' && !$submission && !$isLate) $include = true;
+            if ($filter == 'submitted' && $submission) $include = true;
+            if ($filter == 'late' && !$submission && $isLate) $include = true;
+
+            if ($include) {
+                $tugasList[] = $t;
+            }
         }
-
-        $query .= " ORDER BY t.deadline ASC";
-
-        $tugasList = $this->db->fetchAll($query, $params);
 
         // Stats
         $stats = [
-            'total' => $this->db->count(
-                'tugas t 
-                JOIN pertemuan p ON p.id = t.pertemuan_id 
-                JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id
-                JOIN kelas_mahasiswa km ON km.kelas_id = mk.kelas_id',
-                'km.mahasiswa_id = ?',
-                [$user['id']]
-            ),
-            'pending' => $this->db->fetch(
-                "SELECT COUNT(*) as count FROM tugas t
-                 JOIN pertemuan p ON p.id = t.pertemuan_id
-                 JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id
-                 JOIN kelas_mahasiswa km ON km.kelas_id = mk.kelas_id
-                 LEFT JOIN pengumpulan_tugas pt ON pt.tugas_id = t.id AND pt.mahasiswa_id = ?
-                 WHERE km.mahasiswa_id = ? AND pt.id IS NULL AND t.deadline >= NOW()",
-                [$user['id'], $user['id']]
-            )['count'],
-            'submitted' => $this->db->count('pengumpulan_tugas', 'mahasiswa_id = ?', [$user['id']]),
-            'late' => $this->db->fetch(
-                "SELECT COUNT(*) as count FROM tugas t
-                 JOIN pertemuan p ON p.id = t.pertemuan_id
-                 JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id
-                 JOIN kelas_mahasiswa km ON km.kelas_id = mk.kelas_id
-                 LEFT JOIN pengumpulan_tugas pt ON pt.tugas_id = t.id AND pt.mahasiswa_id = ?
-                 WHERE km.mahasiswa_id = ? AND pt.id IS NULL AND t.deadline < NOW()",
-                [$user['id'], $user['id']]
-            )['count']
+            'total' => 0,
+            'pending' => 0,
+            'submitted' => 0,
+            'late' => 0
         ];
+
+        // Recalculate full stats
+        foreach ($allTugas as $t) {
+            if (!in_array($t['pertemuan_id'], $userPertemuanIds)) continue;
+
+            $submission = null;
+            foreach ($allPengumpulan as $pt) {
+                if ($pt['tugas_id'] == $t['id']) {
+                    $submission = $pt;
+                    break;
+                }
+            }
+
+            $deadline = new \DateTime($t['deadline']);
+            $diff = $now->diff($deadline);
+            $isLate = ($now > $deadline);
+
+            $stats['total']++;
+            if ($submission) {
+                $stats['submitted']++;
+            } else {
+                if ($isLate) {
+                    $stats['late']++;
+                } else {
+                    $stats['pending']++;
+                }
+            }
+        }
+
+        // Sort
+        usort($tugasList, function ($a, $b) {
+            return strtotime($a['deadline']) - strtotime($b['deadline']);
+        });
 
         view('tugas.index', [
             'tugasList' => $tugasList,
@@ -110,40 +156,34 @@ class TugasController
             redirect('tugas');
         }
 
-        $tugas = $this->db->fetch(
-            "SELECT t.*, p.nomor_pertemuan, p.mata_kuliah_id,
-                    mk.nama_mk, mk.kode_mk, mk.dosen, mk.kelas_id,
-                    k.nama_kelas, s.nama as semester_nama,
-                    DATEDIFF(t.deadline, NOW()) as sisa_hari
-             FROM tugas t
-             JOIN pertemuan p ON p.id = t.pertemuan_id
-             JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id
-             JOIN kelas k ON k.id = mk.kelas_id
-             JOIN semester s ON s.id = k.semester_id
-             WHERE t.id = ?",
-            [$id]
-        );
+        $tugas = $this->db->findById('tugas', $id);
 
-        if (!$tugas) {
-            redirect('tugas');
+        if ($tugas) {
+            $pertemuan = $this->db->findById('pertemuan', $tugas['pertemuan_id']);
+            $mk = $this->db->findOne('mata_kuliah', ['id' => $pertemuan['mata_kuliah_id'], 'mahasiswa_id' => $user['id']]);
+
+            if ($mk) {
+                $sem = $this->db->findById('semester', $mk['semester_id']);
+
+                $tugas['nomor_pertemuan'] = $pertemuan['nomor_pertemuan'];
+                $tugas['mata_kuliah_id'] = $mk['id'];
+                $tugas['nama_mk'] = $mk['nama_mk'];
+                $tugas['semester_nama'] = $sem ? $sem['nama'] : '';
+
+                $diff = (new \DateTime())->diff(new \DateTime($tugas['deadline']));
+                $tugas['sisa_hari'] = ((new \DateTime()) > (new \DateTime($tugas['deadline']))) ? -$diff->days : $diff->days;
+            } else {
+                $tugas = null;
+            }
         }
 
-        // Check access
-        $hasAccess = $this->db->fetch(
-            "SELECT 1 FROM kelas_mahasiswa WHERE kelas_id = ? AND mahasiswa_id = ?",
-            [$tugas['kelas_id'], $user['id']]
-        );
-
-        if (!$hasAccess) {
-            flash('error', 'Anda tidak memiliki akses');
+        if (!$tugas) {
+            flash('error', 'Tugas tidak ditemukan');
             redirect('tugas');
         }
 
         // Get submission
-        $submission = $this->db->fetch(
-            "SELECT * FROM pengumpulan_tugas WHERE tugas_id = ? AND mahasiswa_id = ?",
-            [$id, $user['id']]
-        );
+        $submission = $this->db->findOne('pengumpulan_tugas', ['tugas_id' => $id, 'mahasiswa_id' => $user['id']]);
 
         view('tugas.detail', [
             'tugas' => $tugas,
@@ -171,13 +211,13 @@ class TugasController
         }
 
         // Get tugas
-        $tugas = $this->db->fetch(
-            "SELECT t.*, p.folder_gdrive_id as pertemuan_folder_id, p.mata_kuliah_id
-             FROM tugas t
-             JOIN pertemuan p ON p.id = t.pertemuan_id
-             WHERE t.id = ?",
-            [$tugasId]
-        );
+        $tugas = $this->db->findById('tugas', $tugasId);
+        if ($tugas) {
+            $pertemuan = $this->db->findById('pertemuan', $tugas['pertemuan_id']);
+            if ($pertemuan) {
+                $tugas['pertemuan_folder_id'] = $pertemuan['folder_gdrive_id'];
+            }
+        }
 
         if (!$tugas) {
             flash('error', 'Tugas tidak ditemukan');
@@ -185,10 +225,7 @@ class TugasController
         }
 
         // Check if already submitted
-        $existing = $this->db->fetch(
-            "SELECT id FROM pengumpulan_tugas WHERE tugas_id = ? AND mahasiswa_id = ?",
-            [$tugasId, $user['id']]
-        );
+        $existing = $this->db->findOne('pengumpulan_tugas', ['tugas_id' => $tugasId, 'mahasiswa_id' => $user['id']]);
 
         if ($existing) {
             flash('error', 'Anda sudah mengumpulkan tugas ini');
@@ -205,11 +242,9 @@ class TugasController
         }
 
         $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
-        $mahasiswa = $this->db->fetch("SELECT * FROM mahasiswa WHERE id = ?", [$user['id']]);
 
-        // Create submissions folder if not exists
-        $folderId = $tugas['pertemuan_folder_id'] ?? $mahasiswa['gdrive_folder_id'];
-
+        // Upload to pertemuan folder or root
+        $folderId = $tugas['pertemuan_folder_id'];
         $uploadResult = $driveHelper->uploadFromPost('file', $folderId);
 
         if (!$uploadResult['success']) {
@@ -234,23 +269,6 @@ class TugasController
             'status' => $status
         ]);
 
-        // Update progress
-        $this->db->query(
-            "UPDATE progress_mahasiswa 
-             SET tugas_selesai = tugas_selesai + 1
-             WHERE mahasiswa_id = ? AND mata_kuliah_id = ?",
-            [$user['id'], $tugas['mata_kuliah_id']]
-        );
-
-        // Create notification
-        $this->db->insert('notifikasi', [
-            'mahasiswa_id' => $user['id'],
-            'judul' => 'Tugas Berhasil Dikumpulkan',
-            'pesan' => "Tugas '{$tugas['judul']}' telah berhasil dikumpulkan.",
-            'tipe' => 'success',
-            'link' => "/tugas/detail?id=$tugasId"
-        ]);
-
         flash('success', 'Tugas berhasil dikumpulkan!');
         redirect("tugas/detail?id=$tugasId");
     }
@@ -258,44 +276,129 @@ class TugasController
     /**
      * Buat tugas baru (untuk reminder pribadi)
      */
+    /**
+     * Buat tugas baru dengan file
+     */
     public function create()
     {
         $user = auth();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+                return;
+            }
             redirect('tugas');
         }
 
         $pertemuanId = $_POST['pertemuan_id'] ?? null;
         $judul = sanitize($_POST['judul'] ?? '');
         $deskripsi = sanitize($_POST['deskripsi'] ?? '');
-        $deadline = $_POST['deadline'] ?? null;
 
-        if (!$pertemuanId || !$judul || !$deadline) {
+        if (!$pertemuanId || !$judul || !isset($_FILES['file'])) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                echo json_encode(['success' => false, 'error' => 'Data tidak lengkap']);
+                return;
+            }
             flash('error', 'Data tidak lengkap');
             redirect("pertemuan?id=$pertemuanId");
         }
+
+        // Get pertemuan to find folder
+        $pertemuan = $this->db->findById('pertemuan', $pertemuanId);
+        if (!$pertemuan) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                echo json_encode(['success' => false, 'error' => 'Pertemuan tidak ditemukan']);
+                return;
+            }
+            flash('error', 'Pertemuan tidak ditemukan');
+            redirect('mata-kuliah');
+        }
+
+        // Upload to Drive
+        $authController = new AuthController();
+        $tokens = $authController->getTokens($user['id']);
+
+        if (!$tokens) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                echo json_encode(['success' => false, 'error' => 'Token invalid']);
+                return;
+            }
+            redirect('login');
+        }
+
+        $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
+
+        // Use pertemuan folder or root
+        $folderId = $pertemuan['folder_gdrive_id'] ?? null;
+
+        $uploadResult = $driveHelper->uploadFromPost('file', $folderId);
+
+        if (!$uploadResult['success']) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                echo json_encode(['success' => false, 'error' => $uploadResult['error']]);
+                return;
+            }
+            flash('error', 'Gagal upload: ' . $uploadResult['error']);
+            redirect("pertemuan?id=$pertemuanId");
+        }
+
+        $file = $_FILES['file'];
+        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
 
         $this->db->insert('tugas', [
             'pertemuan_id' => $pertemuanId,
             'judul' => $judul,
             'deskripsi' => $deskripsi,
-            'deadline' => $deadline,
-            'created_by' => $user['id']
+            'nama_file' => $file['name'],
+            'tipe_file' => $extension,
+            'ukuran_file' => $file['size'],
+            'file_gdrive_id' => $uploadResult['id'],
+            'file_gdrive_url' => $uploadResult['url'],
+            'created_by' => $user['id'],
+            'deadline' => date('Y-m-d H:i:s') // Dummy deadline for compatibility
         ]);
 
-        // Create reminder notification
-        $pertemuan = $this->db->fetch("SELECT mata_kuliah_id FROM pertemuan WHERE id = ?", [$pertemuanId]);
-
-        $this->db->insert('notifikasi', [
-            'mahasiswa_id' => $user['id'],
-            'judul' => 'Tugas Baru Ditambahkan',
-            'pesan' => "Tugas '$judul' dengan deadline " . formatDateTime($deadline) . " telah ditambahkan.",
-            'tipe' => 'info',
-            'link' => "/pertemuan?id=$pertemuanId"
-        ]);
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            echo json_encode(['success' => true]);
+            return;
+        }
 
         flash('success', 'Tugas berhasil ditambahkan');
         redirect("pertemuan?id=$pertemuanId");
+    }
+
+    /**
+     * Hapus tugas
+     */
+    public function delete()
+    {
+        $user = auth();
+        $id = $_POST['id'] ?? null;
+
+        if (!$id) {
+            flash('error', 'ID tidak valid');
+            redirect('tugas');
+        }
+
+        $tugas = $this->db->findById('tugas', $id);
+
+        if (!$tugas) {
+            flash('error', 'Tugas tidak ditemukan');
+            redirect('tugas');
+        }
+
+        // Delete from Drive
+        $authController = new AuthController();
+        $tokens = $authController->getTokens($user['id']);
+        if ($tokens && isset($tugas['file_gdrive_id'])) {
+            $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
+            $driveHelper->deleteFile($tugas['file_gdrive_id']);
+        }
+
+        $this->db->delete('tugas', $id);
+
+        flash('success', 'Tugas berhasil dihapus');
+        redirect("pertemuan?id=" . $tugas['pertemuan_id']);
     }
 }

@@ -1,5 +1,5 @@
 -- ============================================
--- SIAPGRAK - Database Schema
+-- SIAPGRAK - Database Schema (Self-Manage Version)
 -- Sistem Organisasi Materi Kuliah
 -- ============================================
 
@@ -12,11 +12,8 @@ DROP TABLE IF EXISTS materi;
 DROP TABLE IF EXISTS pertemuan;
 DROP TABLE IF EXISTS jadwal;
 DROP TABLE IF EXISTS mata_kuliah;
-DROP TABLE IF EXISTS kelas_mahasiswa;
-DROP TABLE IF EXISTS kelas;
 DROP TABLE IF EXISTS semester;
 DROP TABLE IF EXISTS notifikasi;
-DROP TABLE IF EXISTS progress_mahasiswa;
 DROP TABLE IF EXISTS mahasiswa;
 DROP TABLE IF EXISTS admin;
 
@@ -36,10 +33,9 @@ CREATE TABLE admin (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insert default admin
+-- Insert default admin (Password: password)
 INSERT INTO admin (username, password, nama, email) VALUES 
 ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrator', 'admin@siapgrak.test');
--- Password: password
 
 -- ============================================
 -- Tabel Mahasiswa
@@ -61,84 +57,44 @@ CREATE TABLE mahasiswa (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_nim (nim),
-    INDEX idx_email (email),
-    INDEX idx_angkatan (angkatan)
+    INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- Tabel Semester
+-- Tabel Semester (Self-Manage by Mahasiswa)
 -- ============================================
 CREATE TABLE semester (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    nama VARCHAR(50) NOT NULL,
-    tahun_ajaran VARCHAR(20) NOT NULL COMMENT 'Contoh: 2024/2025',
-    periode ENUM('ganjil', 'genap') NOT NULL,
-    nomor_semester INT NOT NULL COMMENT 'Semester ke-1, 2, 3, dst',
-    tanggal_mulai DATE NOT NULL,
-    tanggal_selesai DATE NOT NULL,
+    mahasiswa_id INT NOT NULL,
+    nama VARCHAR(100) NOT NULL,
     is_active BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_active (is_active),
-    UNIQUE KEY uk_semester (tahun_ajaran, periode, nomor_semester)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Insert sample semesters
-INSERT INTO semester (nama, tahun_ajaran, periode, nomor_semester, tanggal_mulai, tanggal_selesai, is_active) VALUES
-('Semester 1 - Ganjil 2024/2025', '2024/2025', 'ganjil', 1, '2024-09-01', '2025-02-28', FALSE),
-('Semester 2 - Genap 2024/2025', '2024/2025', 'genap', 2, '2025-03-01', '2025-08-31', FALSE),
-('Semester 3 - Ganjil 2025/2026', '2025/2026', 'ganjil', 3, '2025-09-01', '2026-02-28', TRUE);
-
--- ============================================
--- Tabel Kelas
--- ============================================
-CREATE TABLE kelas (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    nama_kelas VARCHAR(50) NOT NULL,
-    semester_id INT NOT NULL,
-    deskripsi TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (semester_id) REFERENCES semester(id) ON DELETE CASCADE,
-    INDEX idx_semester (semester_id),
-    UNIQUE KEY uk_kelas (nama_kelas, semester_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================
--- Tabel Kelas-Mahasiswa (Many-to-Many)
--- ============================================
-CREATE TABLE kelas_mahasiswa (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    kelas_id INT NOT NULL,
-    mahasiswa_id INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (kelas_id) REFERENCES kelas(id) ON DELETE CASCADE,
     FOREIGN KEY (mahasiswa_id) REFERENCES mahasiswa(id) ON DELETE CASCADE,
-    UNIQUE KEY uk_kelas_mahasiswa (kelas_id, mahasiswa_id),
     INDEX idx_mahasiswa (mahasiswa_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- Tabel Mata Kuliah
+-- Tabel Mata Kuliah (Self-Manage by Mahasiswa)
 -- ============================================
 CREATE TABLE mata_kuliah (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    kode_mk VARCHAR(20) NOT NULL,
+    mahasiswa_id INT NOT NULL,
+    semester_id INT NOT NULL,
     nama_mk VARCHAR(100) NOT NULL,
-    kelas_id INT NOT NULL,
+    kode_mk VARCHAR(20),
     dosen VARCHAR(100),
-    sks INT DEFAULT 3,
-    deskripsi TEXT,
     folder_gdrive_id VARCHAR(100) COMMENT 'Folder ID di Google Drive',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (kelas_id) REFERENCES kelas(id) ON DELETE CASCADE,
-    INDEX idx_kelas (kelas_id),
-    UNIQUE KEY uk_mk_kelas (kode_mk, kelas_id)
+    FOREIGN KEY (mahasiswa_id) REFERENCES mahasiswa(id) ON DELETE CASCADE,
+    FOREIGN KEY (semester_id) REFERENCES semester(id) ON DELETE CASCADE,
+    INDEX idx_mahasiswa (mahasiswa_id),
+    INDEX idx_semester (semester_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- Tabel Pertemuan
+-- Tabel Pertemuan (P1-P18)
 -- ============================================
 CREATE TABLE pertemuan (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -146,9 +102,7 @@ CREATE TABLE pertemuan (
     nomor_pertemuan INT NOT NULL COMMENT '1-18',
     judul VARCHAR(200),
     deskripsi TEXT,
-    tanggal DATE,
     folder_gdrive_id VARCHAR(100) COMMENT 'Folder ID di Google Drive',
-    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (mata_kuliah_id) REFERENCES mata_kuliah(id) ON DELETE CASCADE,
@@ -174,8 +128,7 @@ CREATE TABLE materi (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (pertemuan_id) REFERENCES pertemuan(id) ON DELETE CASCADE,
     FOREIGN KEY (uploaded_by) REFERENCES mahasiswa(id) ON DELETE CASCADE,
-    INDEX idx_pertemuan (pertemuan_id),
-    INDEX idx_uploader (uploaded_by)
+    INDEX idx_pertemuan (pertemuan_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -187,10 +140,10 @@ CREATE TABLE tugas (
     judul VARCHAR(200) NOT NULL,
     deskripsi TEXT,
     deadline DATETIME NOT NULL,
-    file_gdrive_id VARCHAR(100) COMMENT 'File tugas dari dosen jika ada',
+    file_gdrive_id VARCHAR(100),
     file_gdrive_url VARCHAR(500),
     nama_file VARCHAR(255),
-    created_by INT COMMENT 'mahasiswa_id yang membuat',
+    created_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (pertemuan_id) REFERENCES pertemuan(id) ON DELETE CASCADE,
@@ -217,9 +170,7 @@ CREATE TABLE pengumpulan_tugas (
     graded_at DATETIME,
     FOREIGN KEY (tugas_id) REFERENCES tugas(id) ON DELETE CASCADE,
     FOREIGN KEY (mahasiswa_id) REFERENCES mahasiswa(id) ON DELETE CASCADE,
-    UNIQUE KEY uk_submission (tugas_id, mahasiswa_id),
-    INDEX idx_mahasiswa (mahasiswa_id),
-    INDEX idx_status (status)
+    UNIQUE KEY uk_submission (tugas_id, mahasiswa_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -227,7 +178,6 @@ CREATE TABLE pengumpulan_tugas (
 -- ============================================
 CREATE TABLE jadwal (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    kelas_id INT NOT NULL,
     mata_kuliah_id INT NOT NULL,
     hari ENUM('senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu') NOT NULL,
     jam_mulai TIME NOT NULL,
@@ -235,29 +185,8 @@ CREATE TABLE jadwal (
     ruangan VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (kelas_id) REFERENCES kelas(id) ON DELETE CASCADE,
     FOREIGN KEY (mata_kuliah_id) REFERENCES mata_kuliah(id) ON DELETE CASCADE,
-    INDEX idx_kelas (kelas_id),
     INDEX idx_hari (hari)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================
--- Tabel Progress Mahasiswa
--- ============================================
-CREATE TABLE progress_mahasiswa (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    mahasiswa_id INT NOT NULL,
-    mata_kuliah_id INT NOT NULL,
-    pertemuan_selesai INT DEFAULT 0 COMMENT 'Jumlah pertemuan yang sudah dikunjungi',
-    materi_selesai INT DEFAULT 0 COMMENT 'Jumlah materi yang sudah diunduh/dilihat',
-    tugas_selesai INT DEFAULT 0 COMMENT 'Jumlah tugas yang sudah dikumpulkan',
-    total_pertemuan INT DEFAULT 18,
-    last_accessed_at DATETIME,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (mahasiswa_id) REFERENCES mahasiswa(id) ON DELETE CASCADE,
-    FOREIGN KEY (mata_kuliah_id) REFERENCES mata_kuliah(id) ON DELETE CASCADE,
-    UNIQUE KEY uk_progress (mahasiswa_id, mata_kuliah_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -273,40 +202,22 @@ CREATE TABLE notifikasi (
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (mahasiswa_id) REFERENCES mahasiswa(id) ON DELETE CASCADE,
-    INDEX idx_mahasiswa (mahasiswa_id),
-    INDEX idx_read (is_read),
-    INDEX idx_created (created_at)
+    INDEX idx_mahasiswa (mahasiswa_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- Views untuk kemudahan query
+-- Tabel Progress Mahasiswa
 -- ============================================
-
--- View: Statistik mata kuliah
-CREATE OR REPLACE VIEW v_statistik_matkul AS
-SELECT 
-    mk.id,
-    mk.nama_mk,
-    mk.kelas_id,
-    COUNT(DISTINCT p.id) as total_pertemuan,
-    COUNT(DISTINCT m.id) as total_materi,
-    COUNT(DISTINCT t.id) as total_tugas
-FROM mata_kuliah mk
-LEFT JOIN pertemuan p ON p.mata_kuliah_id = mk.id
-LEFT JOIN materi m ON m.pertemuan_id = p.id
-LEFT JOIN tugas t ON t.pertemuan_id = p.id
-GROUP BY mk.id;
-
--- View: Tugas mendekati deadline
-CREATE OR REPLACE VIEW v_tugas_deadline AS
-SELECT 
-    t.*,
-    p.nomor_pertemuan,
-    mk.nama_mk,
-    mk.kelas_id,
-    DATEDIFF(t.deadline, NOW()) as sisa_hari
-FROM tugas t
-JOIN pertemuan p ON p.id = t.pertemuan_id
-JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id
-WHERE t.deadline >= NOW()
-ORDER BY t.deadline ASC;
+CREATE TABLE progress_mahasiswa (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    mahasiswa_id INT NOT NULL,
+    mata_kuliah_id INT NOT NULL,
+    pertemuan_selesai INT DEFAULT 0,
+    materi_selesai INT DEFAULT 0,
+    last_accessed_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (mahasiswa_id) REFERENCES mahasiswa(id) ON DELETE CASCADE,
+    FOREIGN KEY (mata_kuliah_id) REFERENCES mata_kuliah(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_progress (mahasiswa_id, mata_kuliah_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

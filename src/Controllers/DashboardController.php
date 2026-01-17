@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Dashboard Controller
+ * Dashboard Controller - Updated for Self-Manage
  */
 
 namespace App\Controllers;
@@ -19,153 +19,69 @@ class DashboardController
     }
 
     /**
-     * Halaman dashboard utama
+     * Dashboard utama
      */
     public function index()
     {
         $user = auth();
 
-        // Get semester aktif
-        $semesterAktif = $this->db->fetch(
-            "SELECT * FROM semester WHERE is_active = 1 LIMIT 1"
-        );
+        // Get mahasiswa data
+        $mahasiswa = $this->db->findById('mahasiswa', $user['id']);
 
-        // Get kelas mahasiswa di semester aktif
-        $kelasAktif = [];
-        if ($semesterAktif) {
-            $kelasAktif = $this->db->fetchAll(
-                "SELECT k.*, s.nama as semester_nama 
-                 FROM kelas k 
-                 JOIN semester s ON s.id = k.semester_id
-                 JOIN kelas_mahasiswa km ON km.kelas_id = k.id
-                 WHERE km.mahasiswa_id = ? AND k.semester_id = ?",
-                [$user['id'], $semesterAktif['id']]
-            );
-        }
+        // Get semesters
+        $semesters = $this->db->find('semester', ['mahasiswa_id' => $user['id']]);
 
-        // Get mata kuliah dari kelas aktif
-        $mataKuliahList = [];
-        foreach ($kelasAktif as $kelas) {
-            $mataKuliah = $this->db->fetchAll(
-                "SELECT mk.*, 
-                        (SELECT COUNT(*) FROM pertemuan WHERE mata_kuliah_id = mk.id) as total_pertemuan,
-                        (SELECT COUNT(*) FROM materi m JOIN pertemuan p ON p.id = m.pertemuan_id WHERE p.mata_kuliah_id = mk.id) as total_materi
-                 FROM mata_kuliah mk 
-                 WHERE mk.kelas_id = ?",
-                [$kelas['id']]
-            );
-            $mataKuliahList = array_merge($mataKuliahList, $mataKuliah);
-        }
+        // Get all data needed for stats
+        $allMatkul = $this->db->find('mata_kuliah', ['mahasiswa_id' => $user['id']]);
+        $allPertemuan = $this->db->all('pertemuan');
+        $allMateri = $this->db->all('materi');
+        $allTugas = $this->db->all('tugas');
 
-        // Get tugas mendekati deadline
-        $tugasDeadline = $this->db->fetchAll(
-            "SELECT t.*, p.nomor_pertemuan, mk.nama_mk, mk.kelas_id,
-                    DATEDIFF(t.deadline, NOW()) as sisa_hari,
-                    (SELECT COUNT(*) FROM pengumpulan_tugas WHERE tugas_id = t.id AND mahasiswa_id = ?) as sudah_submit
-             FROM tugas t
-             JOIN pertemuan p ON p.id = t.pertemuan_id
-             JOIN mata_kuliah mk ON mk.id = p.mata_kuliah_id
-             JOIN kelas k ON k.id = mk.kelas_id
-             JOIN kelas_mahasiswa km ON km.kelas_id = k.id
-             WHERE km.mahasiswa_id = ? AND t.deadline >= NOW()
-             ORDER BY t.deadline ASC
-             LIMIT 5",
-            [$user['id'], $user['id']]
-        );
+        // Calculate stats manually
+        $totalMatkul = count($allMatkul);
 
-        // Get notifikasi terbaru
-        $notifikasi = $this->db->fetchAll(
-            "SELECT * FROM notifikasi WHERE mahasiswa_id = ? ORDER BY created_at DESC LIMIT 5",
-            [$user['id']]
-        );
+        // Filter pertemuan by user's matkul
+        $userMatkulIds = array_column($allMatkul, 'id');
+        $userPertemuan = array_filter($allPertemuan, function ($p) use ($userMatkulIds) {
+            return in_array($p['mata_kuliah_id'], $userMatkulIds);
+        });
+        $userPertemuanIds = array_column($userPertemuan, 'id');
 
-        // Get unread notification count
-        $unreadCount = $this->db->count('notifikasi', 'mahasiswa_id = ? AND is_read = 0', [$user['id']]);
+        // Filter materi by user's pertemuan
+        $userMateri = array_filter($allMateri, function ($m) use ($userPertemuanIds) {
+            return in_array($m['pertemuan_id'], $userPertemuanIds);
+        });
 
-        // Get jadwal hari ini
-        $hariIni = strtolower(date('l'));
-        $hariMap = [
-            'monday' => 'senin',
-            'tuesday' => 'selasa',
-            'wednesday' => 'rabu',
-            'thursday' => 'kamis',
-            'friday' => 'jumat',
-            'saturday' => 'sabtu',
-            'sunday' => 'minggu'
+        // Filter tugas by user's pertemuan
+        $userTugas = array_filter($allTugas, function ($t) use ($userPertemuanIds) {
+            return in_array($t['pertemuan_id'], $userPertemuanIds);
+        });
+
+        $stats = [
+            'total_semester' => count($semesters),
+            'total_matkul' => $totalMatkul,
+            'total_materi' => count($userMateri),
+            'total_tugas' => count($userTugas)
         ];
-        $hari = $hariMap[$hariIni] ?? 'senin';
 
-        $jadwalHariIni = $this->db->fetchAll(
-            "SELECT j.*, mk.nama_mk, mk.dosen, k.nama_kelas
-             FROM jadwal j
-             JOIN mata_kuliah mk ON mk.id = j.mata_kuliah_id
-             JOIN kelas k ON k.id = j.kelas_id
-             JOIN kelas_mahasiswa km ON km.kelas_id = k.id
-             WHERE km.mahasiswa_id = ? AND j.hari = ?
-             ORDER BY j.jam_mulai ASC",
-            [$user['id'], $hari]
-        );
+        // Get recent matkul
+        // Sort by created_at desc
+        usort($allMatkul, function ($a, $b) {
+            return strtotime($b['created_at']) - strtotime($a['created_at']);
+        });
 
-        // Get progress overview
-        $progressStats = $this->db->fetch(
-            "SELECT 
-                COUNT(DISTINCT mk.id) as total_matkul,
-                COALESCE(SUM(pm.pertemuan_selesai), 0) as pertemuan_selesai,
-                COALESCE(SUM(pm.tugas_selesai), 0) as tugas_selesai
-             FROM mata_kuliah mk
-             JOIN kelas k ON k.id = mk.kelas_id
-             JOIN kelas_mahasiswa km ON km.kelas_id = k.id
-             LEFT JOIN progress_mahasiswa pm ON pm.mata_kuliah_id = mk.id AND pm.mahasiswa_id = ?
-             WHERE km.mahasiswa_id = ?",
-            [$user['id'], $user['id']]
-        );
+        $recentMatkul = array_slice($allMatkul, 0, 5);
+
+        // Enrich recent matkul with semester name
+        foreach ($recentMatkul as &$mk) {
+            $sem = $this->db->findById('semester', $mk['semester_id']);
+            $mk['semester_nama'] = $sem ? $sem['nama'] : '-';
+        }
 
         view('dashboard.index', [
-            'user' => $user,
-            'semesterAktif' => $semesterAktif,
-            'kelasAktif' => $kelasAktif,
-            'mataKuliahList' => $mataKuliahList,
-            'tugasDeadline' => $tugasDeadline,
-            'notifikasi' => $notifikasi,
-            'unreadCount' => $unreadCount,
-            'jadwalHariIni' => $jadwalHariIni,
-            'progressStats' => $progressStats
+            'mahasiswa' => $mahasiswa,
+            'stats' => $stats,
+            'recentMatkul' => $recentMatkul
         ]);
-    }
-
-    /**
-     * Mark notifikasi as read
-     */
-    public function readNotification()
-    {
-        $id = $_POST['id'] ?? null;
-        $user = auth();
-
-        if ($id) {
-            $this->db->update(
-                'notifikasi',
-                ['is_read' => 1],
-                'id = ? AND mahasiswa_id = ?',
-                [$id, $user['id']]
-            );
-        }
-
-        echo json_encode(['success' => true]);
-    }
-
-    /**
-     * Mark all notifications as read
-     */
-    public function readAllNotifications()
-    {
-        $user = auth();
-        $this->db->update(
-            'notifikasi',
-            ['is_read' => 1],
-            'mahasiswa_id = ?',
-            [$user['id']]
-        );
-
-        echo json_encode(['success' => true]);
     }
 }

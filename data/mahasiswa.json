@@ -1,0 +1,18 @@
+[
+    {
+        "nim": "2401301001",
+        "nama": "2401301001 JOKO BIMANTARO",
+        "email": "joko.bimantaro@mhs.politala.ac.id",
+        "google_id": "108893991471379752779",
+        "foto": "https:\/\/lh3.googleusercontent.com\/a\/ACg8ocIzBVGM10iyUV_gV-cu0IHO6lxZHkUOvSYs2kADMsPHlofEdA=s96-c",
+        "angkatan": 2024,
+        "semester_aktif": 3,
+        "access_token": "{\"access_token\":\"ya29.a0AUMWg_Jil8FIvIiIdKhZuKKBDXio8oB8hyFCS66cCJTkoRqJmOfiw-c85995cKS0cUotkwHBrft7bAPurlXtvrEOFeS-3lNyNqhfPi_fb5KuDJG-Id5ZwhuFuck6GF0cvF2u--OnKOlNwEf3C-CO8P7ym6UCRmGeTfu_HbWddi5hhOvIA5_0Lur_ITZ-fSqWx6qofxoaCgYKAYYSARISFQHGX2MibZsDJk6d5v09ESE55Ek4jw0206\",\"expires_in\":3599,\"refresh_token\":\"1\\\/\\\/0gnnq8jyj8gPcCgYIARAAGBASNwF-L9IrUmZqCXuHJMHB-ezB0l4RJYZiKTUKtzVUxBb2WsmSlAw-xrqiFK-fi91D3sz11mVM5D8\",\"scope\":\"https:\\\/\\\/www.googleapis.com\\\/auth\\\/userinfo.profile https:\\\/\\\/www.googleapis.com\\\/auth\\\/userinfo.email openid https:\\\/\\\/www.googleapis.com\\\/auth\\\/drive.file https:\\\/\\\/www.googleapis.com\\\/auth\\\/drive\",\"token_type\":\"Bearer\",\"id_token\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IjdiZjU5NTQ4OWEwYmIxNThiMDg1ZTIzZTdiNTJiZjk4OTFlMDQ1MzgiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI2NjUxOTg1NDIyNTQtYzlybXBlYzl0bXF1ODMwbjZzb3F0MWZjbXVqdGhnaWMuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI2NjUxOTg1NDIyNTQtYzlybXBlYzl0bXF1ODMwbjZzb3F0MWZjbXVqdGhnaWMuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMDg4OTM5OTE0NzEzNzk3NTI3NzkiLCJoZCI6Im1ocy5wb2xpdGFsYS5hYy5pZCIsImVtYWlsIjoiam9rby5iaW1hbnRhcm9AbWhzLnBvbGl0YWxhLmFjLmlkIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImF0X2hhc2giOiI0Q0tMbkVlb2QtVV9JWUt2N3lQdVB3IiwibmFtZSI6IjI0MDEzMDEwMDEgSk9LTyBCSU1BTlRBUk8iLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jSXpCVkdNMTBpeVVWX2dWLWN1MElITzZseFpIa1VPdlNZczJrQURNc1BIbG9mRWRBPXM5Ni1jIiwiZ2l2ZW5fbmFtZSI6IjI0MDEzMDEwMDEiLCJmYW1pbHlfbmFtZSI6IkpPS08gQklNQU5UQVJPIiwiaWF0IjoxNzY4NjM0OTY1LCJleHAiOjE3Njg2Mzg1NjV9.JlpjuTvEYWTVGvwJIQgT3lNPeNiiLMhXawoULiTlH8RcOUU4nW7Yl-K8lsiYcN4v34lKvli1vBdpYei4M_r62o2e_sn0Nzofi4GOQKAArEEme2DqlQGyKFICsKeT52fTju8c4vNv3NQBWkL2ygxB7gDIl_6SNVAhJuGg6jbgfdst0JOfz4wtG_69iPRlviutV-129oPP1eNxq628fk-Akiu1eyVq53HhZ5mJsWxisu50swIWnmrJ61F_n0IRitmrwBy9SmOronfuc7WQjwrzVIOghHBBkj209SVcRzRHDZqsfP4Hx_oAZp4LZp42Eb55VS6TeYGEC304zNks0wyzJw\",\"created\":1768634965}",
+        "refresh_token": "1\/\/0gnnq8jyj8gPcCgYIARAAGBASNwF-L9IrUmZqCXuHJMHB-ezB0l4RJYZiKTUKtzVUxBb2WsmSlAw-xrqiFK-fi91D3sz11mVM5D8",
+        "token_expires_at": "2026-01-17 16:29:25",
+        "id": 1,
+        "created_at": "2026-01-17 15:29:26",
+        "gdrive_folder_id": "1ohFH4bfzirQd2BueyvizpeYfHiOq11ub",
+        "updated_at": "2026-01-17 15:29:27"
+    }
+]

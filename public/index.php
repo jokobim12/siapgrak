@@ -48,12 +48,18 @@ $routes = [
 
     // Dashboard
     'dashboard' => ['controller' => 'DashboardController', 'action' => 'index', 'auth' => true],
-    'notification/read' => ['controller' => 'DashboardController', 'action' => 'readNotification', 'auth' => true, 'method' => 'POST'],
-    'notification/read-all' => ['controller' => 'DashboardController', 'action' => 'readAllNotifications', 'auth' => true, 'method' => 'POST'],
 
-    // Mata Kuliah
+    // Semester (Self-manage by mahasiswa)
+    'semester' => ['controller' => 'SemesterController', 'action' => 'index', 'auth' => true],
+    'semester/tambah' => ['controller' => 'SemesterController', 'action' => 'tambah', 'auth' => true],
+    'semester/hapus' => ['controller' => 'SemesterController', 'action' => 'hapus', 'auth' => true],
+    'semester/set-aktif' => ['controller' => 'SemesterController', 'action' => 'setAktif', 'auth' => true],
+
+    // Mata Kuliah (Self-manage by mahasiswa)
     'mata-kuliah' => ['controller' => 'MataKuliahController', 'action' => 'index', 'auth' => true],
+    'mata-kuliah/tambah' => ['controller' => 'MataKuliahController', 'action' => 'tambah', 'auth' => true],
     'mata-kuliah/detail' => ['controller' => 'MataKuliahController', 'action' => 'detail', 'auth' => true],
+    'mata-kuliah/hapus' => ['controller' => 'MataKuliahController', 'action' => 'hapus', 'auth' => true],
 
     // Pertemuan
     'pertemuan' => ['controller' => 'PertemuanController', 'action' => 'detail', 'auth' => true],

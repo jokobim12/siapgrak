@@ -89,6 +89,50 @@ class GoogleDriveHelper
     }
 
     /**
+     * Cari folder berdasarkan nama dalam parent folder, buat jika tidak ada
+     */
+    public function findOrCreateFolder($name, $parentId = null)
+    {
+        try {
+            // Cari folder dengan nama yang sama
+            if ($parentId) {
+                $query = "name = '$name' and '$parentId' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+            } else {
+                // Jika tidak ada parent, cari di root (My Drive)
+                $query = "name = '$name' and 'root' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+            }
+
+            $response = $this->driveService->files->listFiles([
+                'q' => $query,
+                'fields' => 'files(id, name, webViewLink)',
+                'pageSize' => 1
+            ]);
+
+            $files = $response->getFiles();
+
+            if (count($files) > 0) {
+                // Folder sudah ada
+                $folder = $files[0];
+                return [
+                    'success' => true,
+                    'id' => $folder->getId(),
+                    'name' => $folder->getName(),
+                    'url' => $folder->getWebViewLink(),
+                    'existed' => true
+                ];
+            }
+
+            // Folder tidak ada, buat baru
+            return $this->createFolder($name, $parentId);
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Upload file ke Google Drive
      */
     public function uploadFile($filePath, $fileName, $folderId = null, $mimeType = null)

@@ -94,14 +94,16 @@ class AuthController
         }
 
         // 4. Cek apakah mahasiswa sudah terdaftar
-        $mahasiswa = $this->db->fetch(
-            "SELECT * FROM mahasiswa WHERE google_id = ? OR email = ?",
-            [$googleUser['google_id'], $googleUser['email']]
-        );
+        // 4. Cek apakah mahasiswa sudah terdaftar
+        $mahasiswa = $this->db->findOne('mahasiswa', ['google_id' => $googleUser['google_id']]);
+        if (!$mahasiswa) {
+            $mahasiswa = $this->db->findOne('mahasiswa', ['email' => $googleUser['email']]);
+        }
 
         if ($mahasiswa) {
             // Update existing mahasiswa
-            $this->db->update('mahasiswa', [
+            // Update existing mahasiswa
+            $this->db->update('mahasiswa', $mahasiswa['id'], [
                 'google_id' => $googleUser['google_id'],
                 'nama' => $googleUser['nama'],
                 'foto' => $googleUser['foto'],
@@ -109,7 +111,7 @@ class AuthController
                 'refresh_token' => $tokenResult['refresh_token'] ?? $mahasiswa['refresh_token'],
                 'token_expires_at' => date('Y-m-d H:i:s', time() + $tokenResult['expires_in']),
                 'semester_aktif' => $studentInfo['semester']
-            ], 'id = ?', [$mahasiswa['id']]);
+            ]);
 
             $mahasiswa['foto'] = $googleUser['foto'];
             $mahasiswa['semester_aktif'] = $studentInfo['semester'];
@@ -133,12 +135,12 @@ class AuthController
             $rootFolder = $driveHelper->createRootFolder($googleUser['nama']);
 
             if ($rootFolder['success']) {
-                $this->db->update('mahasiswa', [
+                $this->db->update('mahasiswa', $mahasiswaId, [
                     'gdrive_folder_id' => $rootFolder['id']
-                ], 'id = ?', [$mahasiswaId]);
+                ]);
             }
 
-            $mahasiswa = $this->db->fetch("SELECT * FROM mahasiswa WHERE id = ?", [$mahasiswaId]);
+            $mahasiswa = $this->db->findById('mahasiswa', $mahasiswaId);
 
             // Buat notifikasi selamat datang
             $this->db->insert('notifikasi', [
@@ -181,10 +183,7 @@ class AuthController
      */
     public function getTokens($mahasiswaId)
     {
-        $mahasiswa = $this->db->fetch(
-            "SELECT access_token, refresh_token, token_expires_at FROM mahasiswa WHERE id = ?",
-            [$mahasiswaId]
-        );
+        $mahasiswa = $this->db->findById('mahasiswa', $mahasiswaId);
 
         if (!$mahasiswa) {
             return null;
@@ -227,7 +226,8 @@ class AuthController
             $semester = hitungSemester($nim);
 
             // Cek apakah NIM sudah terdaftar
-            $existing = $this->db->fetch("SELECT id FROM mahasiswa WHERE nim = ?", [$nim]);
+            // Cek apakah NIM sudah terdaftar
+            $existing = $this->db->findOne('mahasiswa', ['nim' => $nim]);
             if ($existing) {
                 flash('error', 'NIM sudah terdaftar. Silakan hubungi admin jika ini adalah NIM Anda.');
                 view('auth.register_nim', ['pending' => $pending]);
@@ -253,12 +253,12 @@ class AuthController
             $rootFolder = $driveHelper->createRootFolder($pending['nama']);
 
             if ($rootFolder['success']) {
-                $this->db->update('mahasiswa', [
+                $this->db->update('mahasiswa', $mahasiswaId, [
                     'gdrive_folder_id' => $rootFolder['id']
-                ], 'id = ?', [$mahasiswaId]);
+                ]);
             }
 
-            $mahasiswa = $this->db->fetch("SELECT * FROM mahasiswa WHERE id = ?", [$mahasiswaId]);
+            $mahasiswa = $this->db->findById('mahasiswa', $mahasiswaId);
 
             // Buat notifikasi selamat datang
             $this->db->insert('notifikasi', [

@@ -1,105 +1,68 @@
 <?php
 
 /**
- * Mata Kuliah Index View
+ * Daftar Mata Kuliah
  */
 $title = 'Mata Kuliah';
-$pageTitle = 'Mata Kuliah';
 ob_start();
 ?>
 
-<div class="space-y-6">
-    <!-- Filter Section -->
-    <div class="card p-4">
-        <form method="GET" class="flex flex-wrap gap-4">
-            <div class="flex-1 min-w-[200px]">
-                <label class="label">Semester</label>
-                <select name="semester_id" class="input" onchange="this.form.submit()">
-                    <option value="">Semua Semester</option>
-                    <?php foreach ($semesters as $semester): ?>
-                        <option value="<?= $semester['id'] ?>" <?= $selectedSemesterId == $semester['id'] ? 'selected' : '' ?>>
-                            <?= $semester['nama'] ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="flex-1 min-w-[200px]">
-                <label class="label">Kelas</label>
-                <select name="kelas_id" class="input" onchange="this.form.submit()">
-                    <option value="">Pilih Kelas</option>
-                    <?php foreach ($kelasList as $kelas): ?>
-                        <option value="<?= $kelas['id'] ?>" <?= $selectedKelasId == $kelas['id'] ? 'selected' : '' ?>>
-                            <?= $kelas['nama_kelas'] ?> - <?= $kelas['semester_nama'] ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </form>
+<div class="space-y-4 pb-20 lg:pb-0">
+    <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold text-gray-800">Mata Kuliah</h1>
+        <a href="<?= base_url('mata-kuliah/tambah') ?>" class="btn-primary btn-sm">
+            <i class="fas fa-plus mr-2"></i>Tambah
+        </a>
     </div>
 
-    <!-- Mata Kuliah Grid -->
+    <!-- Filter Semester -->
+    <?php if (!empty($semesters)): ?>
+        <div class="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+            <a href="<?= base_url('mata-kuliah') ?>"
+                class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors <?= !$selectedSemester ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50' ?>">
+                Semua
+            </a>
+            <?php foreach ($semesters as $s): ?>
+                <a href="<?= base_url('mata-kuliah?semester_id=' . $s['id']) ?>"
+                    class="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors <?= $selectedSemester == $s['id'] ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50' ?>">
+                    <?= $s['nama'] ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- Lista Matkul -->
     <?php if (!empty($mataKuliahList)): ?>
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="space-y-3">
             <?php foreach ($mataKuliahList as $mk): ?>
-                <a href="<?= base_url('mata-kuliah/detail?id=' . $mk['id']) ?>" class="card-hover group">
-                    <!-- Header with gradient -->
-                    <div class="h-24 gradient-primary rounded-t-xl relative overflow-hidden">
-                        <div class="absolute inset-0 bg-black/10"></div>
-                        <div class="absolute bottom-0 left-0 right-0 p-4">
-                            <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs text-white">
-                                <?= $mk['kode_mk'] ?>
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="p-5">
-                        <h3 class="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
-                            <?= $mk['nama_mk'] ?>
-                        </h3>
-                        <p class="text-sm text-gray-500 mt-1"><?= $mk['nama_kelas'] ?></p>
-
-                        <?php if ($mk['dosen']): ?>
-                            <div class="flex items-center gap-2 mt-3 text-sm text-gray-600">
-                                <i class="fas fa-user-tie"></i>
-                                <span><?= $mk['dosen'] ?></span>
+                <a href="<?= base_url('mata-kuliah/detail?id=' . $mk['id']) ?>" class="card block">
+                    <div class="p-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-book text-blue-600 text-lg"></i>
                             </div>
-                        <?php endif; ?>
-
-                        <!-- Stats -->
-                        <div class="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100">
-                            <div class="flex items-center gap-1.5 text-sm text-gray-500">
-                                <i class="fas fa-chalkboard"></i>
-                                <span><?= $mk['total_pertemuan'] ?> Pertemuan</span>
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-semibold text-gray-800 truncate"><?= $mk['nama_mk'] ?></h3>
+                                <p class="text-sm text-gray-500"><?= $mk['semester_nama'] ?></p>
                             </div>
-                            <div class="flex items-center gap-1.5 text-sm text-gray-500">
-                                <i class="fas fa-file-alt"></i>
-                                <span><?= $mk['total_materi'] ?> Materi</span>
-                            </div>
-                        </div>
-
-                        <!-- Progress bar -->
-                        <div class="mt-4">
-                            <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-                                <span>Progress</span>
-                                <span><?= round(($mk['total_materi'] / 18) * 100) ?>%</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-bar-fill" style="width: <?= min(100, round(($mk['total_materi'] / 18) * 100)) ?>%"></div>
+                            <div class="text-right">
+                                <span class="badge-primary"><?= $mk['total_materi'] ?> materi</span>
                             </div>
                         </div>
                     </div>
                 </a>
             <?php endforeach; ?>
         </div>
-    <?php elseif ($selectedKelasId): ?>
-        <div class="card p-8 text-center">
-            <i class="fas fa-book-open text-5xl text-gray-300 mb-4"></i>
-            <p class="text-gray-500">Tidak ada mata kuliah di kelas ini</p>
-        </div>
     <?php else: ?>
-        <div class="card p-8 text-center">
-            <i class="fas fa-hand-pointer text-5xl text-gray-300 mb-4"></i>
-            <p class="text-gray-500">Pilih kelas untuk melihat mata kuliah</p>
+        <div class="card">
+            <div class="empty-state">
+                <i class="fas fa-book-open empty-state-icon"></i>
+                <p class="font-medium text-gray-600">Belum ada mata kuliah</p>
+                <p class="text-sm text-gray-500 mt-1">Tambahkan mata kuliah pertama Anda</p>
+                <a href="<?= base_url('mata-kuliah/tambah') ?>" class="btn-primary mt-4">
+                    <i class="fas fa-plus mr-2"></i>Tambah Mata Kuliah
+                </a>
+            </div>
         </div>
     <?php endif; ?>
 </div>

@@ -1,0 +1,12 @@
+{
+    "name": "siapgrak",
+    "version": "1.0.0",
+    "description": "Sistem Organisasi Materi Kuliah",
+    "scripts": {
+        "dev": "npx tailwindcss -i ./src/css/input.css -o ./public/css/style.css --watch",
+        "build": "npx tailwindcss -i ./src/css/input.css -o ./public/css/style.css --minify"
+    },
+    "devDependencies": {
+        "tailwindcss": "^3.4.0"
+    }
+}

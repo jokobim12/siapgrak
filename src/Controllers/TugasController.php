@@ -315,7 +315,7 @@ class TugasController
             redirect('mata-kuliah');
         }
 
-        // Upload to Drive
+        // Get tokens
         $authController = new AuthController();
         $tokens = $authController->getTokens($user['id']);
 
@@ -329,10 +329,85 @@ class TugasController
 
         $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
 
-        // Use pertemuan folder or root
-        $folderId = $pertemuan['folder_gdrive_id'] ?? null;
+        // Get existing folder ID
+        $pertemuanFolderId = $pertemuan['folder_gdrive_id'];
 
-        $uploadResult = $driveHelper->uploadFromPost('file', $folderId);
+        // Verify if folder actually exists in Drive (handle stale IDs)
+        if ($pertemuanFolderId) {
+            $checkFolder = $driveHelper->getFile($pertemuanFolderId);
+            if (!$checkFolder['success']) {
+                $pertemuanFolderId = null; // ID is invalid, force rebuild
+            }
+        }
+
+        if (!$pertemuanFolderId) {
+            // Rebuild folder structure (Semester -> MK -> Pertemuan)
+
+            // 1. Check MK
+            $mk = $this->db->findById('mata_kuliah', $pertemuan['mata_kuliah_id']);
+            if (!$mk) {
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                    echo json_encode(['success' => false, 'error' => 'Mata Kuliah tidak ditemukan']);
+                    return;
+                }
+                flash('error', 'Mata Kuliah tidak ditemukan');
+                redirect("pertemuan?id=$pertemuanId");
+            }
+
+            // 2. Check Semester
+            $semester = $this->db->findById('semester', $mk['semester_id']);
+
+            // Ensure semester folder
+            $semesterFolder = $driveHelper->findOrCreateFolder($semester['nama'], null);
+            if (!$semesterFolder['success']) {
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                    echo json_encode(['success' => false, 'error' => 'Gagal buat folder semester: ' . $semesterFolder['error']]);
+                    return;
+                }
+                flash('error', 'Gagal buat folder semester');
+                redirect("pertemuan?id=$pertemuanId");
+            }
+
+            // Ensure MK folder
+            $mkFolder = $driveHelper->findOrCreateFolder($mk['nama_mk'], $semesterFolder['id']);
+            if (!$mkFolder['success']) {
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                    echo json_encode(['success' => false, 'error' => 'Gagal buat folder MK: ' . $mkFolder['error']]);
+                    return;
+                }
+                flash('error', 'Gagal buat folder MK');
+                redirect("pertemuan?id=$pertemuanId");
+            }
+            $this->db->update('mata_kuliah', $mk['id'], ['folder_gdrive_id' => $mkFolder['id']]);
+
+            // Ensure Pertemuan folder
+            $pertemuanFolderName = "Pertemuan " . $pertemuan['nomor_pertemuan'];
+            $pFolder = $driveHelper->findOrCreateFolder($pertemuanFolderName, $mkFolder['id']);
+            if (!$pFolder['success']) {
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                    echo json_encode(['success' => false, 'error' => 'Gagal buat folder Pertemuan: ' . $pFolder['error']]);
+                    return;
+                }
+                flash('error', 'Gagal buat folder Pertemuan');
+                redirect("pertemuan?id=$pertemuanId");
+            }
+
+            $pertemuanFolderId = $pFolder['id'];
+            $this->db->update('pertemuan', $pertemuan['id'], ['folder_gdrive_id' => $pertemuanFolderId]);
+        }
+
+        // Ensure Tugas folder inside Pertemuan
+        $tugasFolder = $driveHelper->findOrCreateFolder('Tugas', $pertemuanFolderId);
+        if (!$tugasFolder['success']) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                echo json_encode(['success' => false, 'error' => 'Gagal buat folder Tugas: ' . $tugasFolder['error']]);
+                return;
+            }
+            flash('error', 'Gagal buat folder Tugas');
+            redirect("pertemuan?id=$pertemuanId");
+        }
+
+        $uploadResult = $driveHelper->uploadFromPost('file', $tugasFolder['id']);
 
         if (!$uploadResult['success']) {
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
@@ -356,7 +431,7 @@ class TugasController
             'file_gdrive_id' => $uploadResult['id'],
             'file_gdrive_url' => $uploadResult['url'],
             'created_by' => $user['id'],
-            'deadline' => date('Y-m-d H:i:s') // Dummy deadline for compatibility
+            'deadline' => date('Y-m-d H:i:s') // Dummy
         ]);
 
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {

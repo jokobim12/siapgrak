@@ -142,12 +142,7 @@ ob_start();
                     <i class="fas fa-upload mr-2"></i>Upload
                 </button>
             </div>
-            <!-- Progress Bar -->
-            <div class="progress-container hidden px-6 pb-6">
-                <div class="w-full bg-gray-200 rounded-full h-4">
-                    <div class="progress-bar bg-primary-600 h-4 rounded-full text-xs font-medium text-blue-100 text-center p-0.5 leading-none transition-all duration-300 ease-out" style="width: 0%"> 0%</div>
-                </div>
-            </div>
+
         </form>
     </div>
 </div>
@@ -185,12 +180,7 @@ ob_start();
                     <i class="fas fa-upload mr-2"></i>Upload
                 </button>
             </div>
-            <!-- Progress Bar -->
-            <div class="progress-container hidden px-6 pb-6">
-                <div class="w-full bg-gray-200 rounded-full h-4">
-                    <div class="progress-bar bg-primary-600 h-4 rounded-full text-xs font-medium text-blue-100 text-center p-0.5 leading-none transition-all duration-300 ease-out" style="width: 0%"> 0%</div>
-                </div>
-            </div>
+
         </form>
     </div>
 </div>
@@ -208,53 +198,54 @@ include VIEWS_PATH . '/layouts/main.php';
         form.addEventListener('submit', function(e) {
             e.preventDefault();
 
-            const progressBar = form.querySelector('.progress-bar');
-            const progressContainer = form.querySelector('.progress-container');
             const submitBtn = form.querySelector('button[type="submit"]');
 
-            // Reset state
+            // Set loading state
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
-            progressContainer.classList.remove('hidden');
-            progressBar.style.width = '0%';
-            progressBar.textContent = '0%';
+            submitBtn.innerHTML = '<i class="fas fa-cog fa-spin mr-2"></i>Memproses ke Google Drive...';
 
             const formData = new FormData(form);
             const xhr = new XMLHttpRequest();
 
-            xhr.upload.addEventListener('progress', function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
-                    progressBar.style.width = percentComplete + '%';
-                    progressBar.textContent = percentComplete + '%';
 
-                    if (percentComplete === 100) {
-                        submitBtn.innerHTML = '<i class="fas fa-cog fa-spin mr-2"></i>Memproses ke Google Drive...';
-                    }
-                }
-            });
-
-            xhr.addEventListener('load', function() {
+            xhr.onload = function() {
                 if (xhr.status === 200) {
-                    // Success
-                    window.location.reload();
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Gagal: ' + (response.error || 'Terjadi kesalahan unknown'));
+                            resetBtn();
+                        }
+                    } catch (e) {
+                        // If response is not JSON (e.g. PHP error or redirect), reload might be safer or show error
+                        // But if it's a redirect, window.location.reload() might not be what we want if we want to follow redirect url? 
+                        // Actually if controller returns redirect, it comes as 302/200 OK with content. 
+                        // Our controller returns JSON for AJAX.
+                        console.error(e);
+                        window.location.reload();
+                    }
                 } else {
-                    // Error
-                    alert('Upload gagal. Silakan coba lagi.');
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload';
-                    progressContainer.classList.add('hidden');
+                    alert('Upload gagal. Status: ' + xhr.status);
+                    resetBtn();
                 }
-            });
+            };
+
+            function resetBtn() {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload';
+            }
+
 
             xhr.addEventListener('error', function() {
                 alert('Terjadi kesalahan jaringan.');
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload';
-                progressContainer.classList.add('hidden');
             });
 
             xhr.open('POST', form.action, true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); // Explicitly set header for AJAX detection
             xhr.send(formData);
         });
     }

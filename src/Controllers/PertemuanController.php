@@ -184,6 +184,10 @@ class PertemuanController
             $semesterFolderName = $mkInfo['semester_nama'];
             $semesterFolder = $driveHelper->findOrCreateFolder($semesterFolderName, null);
             if (!$semesterFolder['success']) {
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                    echo json_encode(['success' => false, 'error' => 'Gagal membuat folder semester: ' . $semesterFolder['error']]);
+                    return;
+                }
                 flash('error', 'Gagal membuat folder semester: ' . $semesterFolder['error']);
                 redirect("pertemuan?id=$pertemuanId");
             }
@@ -192,6 +196,10 @@ class PertemuanController
             $mkFolderName = $mkInfo['nama_mk'];
             $mkFolder = $driveHelper->findOrCreateFolder($mkFolderName, $semesterFolder['id']);
             if (!$mkFolder['success']) {
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                    echo json_encode(['success' => false, 'error' => 'Gagal membuat folder mata kuliah: ' . $mkFolder['error']]);
+                    return;
+                }
                 flash('error', 'Gagal membuat folder mata kuliah: ' . $mkFolder['error']);
                 redirect("pertemuan?id=$pertemuanId");
             }
@@ -203,6 +211,10 @@ class PertemuanController
             $pertemuanFolderName = "Pertemuan " . $pertemuan['nomor_pertemuan'];
             $pFolder = $driveHelper->findOrCreateFolder($pertemuanFolderName, $mkFolder['id']);
             if (!$pFolder['success']) {
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                    echo json_encode(['success' => false, 'error' => 'Gagal membuat folder pertemuan: ' . $pFolder['error']]);
+                    return;
+                }
                 flash('error', 'Gagal membuat folder pertemuan: ' . $pFolder['error']);
                 redirect("pertemuan?id=$pertemuanId");
             }
@@ -215,6 +227,10 @@ class PertemuanController
         $uploadResult = $driveHelper->uploadFromPost('file', $pertemuanFolderId);
 
         if (!$uploadResult['success']) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                echo json_encode(['success' => false, 'error' => $uploadResult['error']]);
+                return;
+            }
             flash('error', 'Gagal upload file: ' . $uploadResult['error']);
             redirect("pertemuan?id=$pertemuanId");
         }

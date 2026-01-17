@@ -71,6 +71,7 @@ $routes = [
     'tugas/detail' => ['controller' => 'TugasController', 'action' => 'detail', 'auth' => true],
     'tugas/submit' => ['controller' => 'TugasController', 'action' => 'submit', 'auth' => true, 'method' => 'POST'],
     'tugas/create' => ['controller' => 'TugasController', 'action' => 'create', 'auth' => true, 'method' => 'POST'],
+    'tugas/delete' => ['controller' => 'TugasController', 'action' => 'delete', 'auth' => true, 'method' => 'POST'],
 
     // Jadwal
     'jadwal' => ['controller' => 'JadwalController', 'action' => 'index', 'auth' => true],

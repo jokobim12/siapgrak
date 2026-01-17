@@ -1,18 +1,5 @@
 [
     {
-        "nim": "2401301001",
-        "nama": "2401301001 JOKO BIMANTARO",
-        "email": "joko.bimantaro@mhs.politala.ac.id",
-        "google_id": "108893991471379752779",
-        "foto": "https:\/\/lh3.googleusercontent.com\/a\/ACg8ocIzBVGM10iyUV_gV-cu0IHO6lxZHkUOvSYs2kADMsPHlofEdA=s96-c",
-        "angkatan": 2024,
-        "semester_aktif": 3,
-        "access_token": "",
-        "refresh_token": "",
-        "token_expires_at": "",
-        "id": 1,
-        "created_at": "2026-01-17 15:29:26",
-        "gdrive_folder_id": "1ohFH4bfzirQd2BueyvizpeYfHiOq11ub",
-        "updated_at": "2026-01-17 17:25:11"
+    
     }
 ]

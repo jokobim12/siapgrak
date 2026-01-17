@@ -40,7 +40,7 @@ class PertemuanController
             $mk = $this->db->findOne('mata_kuliah', ['id' => $pertemuan['mata_kuliah_id'], 'mahasiswa_id' => $user['id']]);
             if ($mk) {
                 $pertemuan['nama_mk'] = $mk['nama_mk'];
-                $pertemuan['mk_folder_id'] = $mk['folder_gdrive_id'];
+                $pertemuan['mk_folder_id'] = $mk['folder_gdrive_id'] ?? null;
 
                 $semester = $this->db->findById('semester', $mk['semester_id']);
                 $pertemuan['semester_nama'] = $semester ? $semester['nama'] : '';

@@ -40,7 +40,7 @@ ob_start();
                             <a href="<?= base_url('mata-kuliah?semester_id=' . $s['id']) ?>" class="text-sm text-primary-600">
                                 Lihat Mata Kuliah <i class="fas fa-chevron-right ml-1"></i>
                             </a>
-                            <a href="<?= base_url('semester/hapus?id=' . $s['id']) ?>" class="text-sm text-red-600" onclick="return confirm('Hapus semester ini? Semua data matkul dan materi akan ikut terhapus.')">
+                            <a href="#" onclick="showConfirm('Hapus Semester', 'Apakah Anda yakin ingin menghapus semester ini? Semua Mata Kuliah dan Materi di dalamnya akan ikut terhapus permanen.', '<?= base_url('semester/hapus?id=' . $s['id']) ?>')" class="text-sm text-red-600">
                                 <i class="fas fa-trash"></i>
                             </a>
                         </div>

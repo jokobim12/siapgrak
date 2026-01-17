@@ -28,13 +28,21 @@ class GoogleDriveHelper
 
         if ($accessToken) {
             $this->client->setAccessToken($accessToken);
+        }
 
-            // Refresh token jika expired
-            if ($this->client->isAccessTokenExpired() && $refreshToken) {
+        // Jika token expired atau tidak ada access token tapi ada refresh token
+        if (($this->client->isAccessTokenExpired() || !$accessToken) && $refreshToken) {
+            try {
                 $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
                 $this->accessToken = $this->client->getAccessToken();
+            } catch (\Exception $e) {
+                // Refresh failed
+                error_log("Google Drive Refresh Token Failed: " . $e->getMessage());
             }
+        }
 
+        // Initialize Service if we have a token
+        if ($this->client->getAccessToken()) {
             $this->driveService = new \Google\Service\Drive($this->client);
         }
     }
@@ -60,6 +68,10 @@ class GoogleDriveHelper
      */
     public function createFolder($name, $parentId = null)
     {
+        if (!$this->driveService) {
+            return ['success' => false, 'error' => 'Google Drive service not initialized (Token invalid)'];
+        }
+
         try {
             $fileMetadata = new \Google\Service\Drive\DriveFile([
                 'name' => $name,
@@ -93,6 +105,10 @@ class GoogleDriveHelper
      */
     public function findOrCreateFolder($name, $parentId = null)
     {
+        if (!$this->driveService) {
+            return ['success' => false, 'error' => 'Google Drive service not initialized'];
+        }
+
         try {
             // Cari folder dengan nama yang sama
             if ($parentId) {
@@ -137,6 +153,10 @@ class GoogleDriveHelper
      */
     public function uploadFile($filePath, $fileName, $folderId = null, $mimeType = null)
     {
+        if (!$this->driveService) {
+            return ['success' => false, 'error' => 'Google Drive service not initialized'];
+        }
+
         try {
             $fileMetadata = new \Google\Service\Drive\DriveFile([
                 'name' => $fileName
@@ -251,6 +271,9 @@ class GoogleDriveHelper
     public function deleteFile($fileId)
     {
         try {
+            if (!$this->driveService) {
+                return ['success' => false, 'error' => 'Google Drive service not initialized'];
+            }
             $this->driveService->files->delete($fileId);
             return ['success' => true];
         } catch (\Exception $e) {

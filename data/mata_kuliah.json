@@ -1,11 +1,61 @@
 [
     {
-        "nama_mk": "Data Mining",
-        "semester_id": 1,
+        "nama_mk": "Komunikasi Data dan Jaringan",
+        "semester_id": 2,
         "mahasiswa_id": 1,
         "id": 1,
-        "created_at": "2026-01-17 16:20:48",
-        "folder_gdrive_id": "1vDm6dN-ATpYGtUY8bIV9hQUP09IA3TR7",
-        "updated_at": "2026-01-17 16:21:03"
+        "created_at": "2026-01-17 18:34:58",
+        "dosen": "Pa Afian",
+        "korti": "Bima",
+        "updated_at": "2026-01-17 18:37:20"
+    },
+    {
+        "nama_mk": "Sistem Operaasi",
+        "semester_id": 2,
+        "mahasiswa_id": 1,
+        "id": 2,
+        "created_at": "2026-01-17 18:35:14",
+        "dosen": "Bu Fina",
+        "korti": "Agung",
+        "updated_at": "2026-01-17 18:38:04"
+    },
+    {
+        "nama_mk": "Elektronika Dasar dan Sensor",
+        "semester_id": 2,
+        "mahasiswa_id": 1,
+        "id": 3,
+        "created_at": "2026-01-17 18:35:33"
+    },
+    {
+        "nama_mk": "Teknik Pengambilan Keputusan",
+        "semester_id": 2,
+        "mahasiswa_id": 1,
+        "id": 4,
+        "created_at": "2026-01-17 18:35:47"
+    },
+    {
+        "nama_mk": "Pemrograman Web Lanjut",
+        "semester_id": 2,
+        "mahasiswa_id": 1,
+        "id": 5,
+        "created_at": "2026-01-17 18:36:00"
+    },
+    {
+        "nama_mk": "Integrasi Sistem",
+        "semester_id": 2,
+        "mahasiswa_id": 1,
+        "id": 6,
+        "created_at": "2026-01-17 18:36:13"
+    },
+    {
+        "nama_mk": "IT Project 1",
+        "semester_id": 2,
+        "mahasiswa_id": 1,
+        "id": 7,
+        "created_at": "2026-01-17 18:36:26",
+        "dosen": "Pa Oky dan Pa Reza",
+        "korti": "Agung",
+        "updated_at": "2026-01-17 19:41:53",
+        "folder_gdrive_id": "1IdoBd8PnSA36Ju5MH5kPR66NZ_evjQfs"
     }
 ]

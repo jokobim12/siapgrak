@@ -82,11 +82,6 @@ class SemesterController
                 'mahasiswa_id' => $user['id'],
                 'is_active' => 1
             ]);
-            $lastId = $this->db->insert('semester', [
-                'nama' => $nama,
-                'mahasiswa_id' => $user['id'],
-                'is_active' => 1
-            ]);
 
             // Set other semesters inactive
             $userSemesters = $this->db->find('semester', ['mahasiswa_id' => $user['id']]);

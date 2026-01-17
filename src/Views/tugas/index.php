@@ -75,11 +75,20 @@ ob_start();
                                 <i class="far fa-clock"></i>
                                 <span>
                                     <?php
-                                    $deadlineDate = date('d M, H:i', strtotime($t['deadline']));
-                                    if ($isDone) echo "Selesai";
-                                    elseif ($isLate) echo "Telat " . abs($t['sisa_hari']) . " hari ($deadlineDate)";
-                                    elseif ($t['sisa_hari'] == 0) echo "Hari ini, $deadlineDate";
-                                    else echo "$deadlineDate (" . $t['sisa_hari'] . " hari lagi)";
+                                    $hasDeadline = !empty($t['deadline']);
+                                    $deadlineDate = $hasDeadline ? date('d M, H:i', strtotime($t['deadline'])) : '-';
+
+                                    if ($isDone) {
+                                        echo "Selesai";
+                                    } elseif (!$hasDeadline) {
+                                        echo "Tanpa Batas Waktu";
+                                    } elseif ($isLate) {
+                                        echo "Telat " . abs($t['sisa_hari']) . " hari ($deadlineDate)";
+                                    } elseif ($t['sisa_hari'] == 0) {
+                                        echo "Hari ini, $deadlineDate";
+                                    } else {
+                                        echo "$deadlineDate (" . $t['sisa_hari'] . " hari lagi)";
+                                    }
                                     ?>
                                 </span>
                             </div>
@@ -214,13 +223,27 @@ ob_start();
 
             <div class="form-group">
                 <label class="form-label">
+                    <i class="fas fa-layer-group mr-1 text-primary-600"></i>Filter Semester
+                </label>
+                <select id="todo_semester_filter" class="form-control">
+                    <option value="all">Semua Semester</option>
+                    <?php if (!empty($semesters)): ?>
+                        <?php foreach ($semesters as $sem): ?>
+                            <option value="<?= $sem['id'] ?>"><?= $sem['nama'] ?></option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
                     <i class="fas fa-book mr-1 text-primary-600"></i>Mata Kuliah
                 </label>
-                <select name="mata_kuliah_id" class="form-control" required>
-                    <option value="" disabled selected>Pilih...</option>
+                <select name="mata_kuliah_id" id="todo_mk_select" class="form-control" required>
+                    <option value="" selected>Pilih...</option>
                     <?php if (!empty($allMatkul)): ?>
                         <?php foreach ($allMatkul as $mk): ?>
-                            <option value="<?= $mk['id'] ?>"><?= $mk['nama_mk'] ?></option>
+                            <option value="<?= $mk['id'] ?>" data-semester="<?= $mk['semester_id'] ?>"><?= $mk['nama_mk'] ?></option>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <option value="" disabled>Belum ada MK</option>
@@ -256,6 +279,33 @@ ob_start();
         </form>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const semesterFilter = document.getElementById('todo_semester_filter');
+        const mkSelect = document.getElementById('todo_mk_select');
+
+        if (semesterFilter && mkSelect) {
+            const allOptions = Array.from(mkSelect.options);
+
+            semesterFilter.addEventListener('change', function() {
+                const selectedSem = this.value;
+
+                // Reset MK Select
+                mkSelect.innerHTML = '<option value="" selected>Pilih...</option>';
+
+                allOptions.forEach(opt => {
+                    if (opt.value === "") return;
+
+                    const semId = opt.getAttribute('data-semester');
+                    if (selectedSem === 'all' || semId === selectedSem) {
+                        mkSelect.appendChild(opt);
+                    }
+                });
+            });
+        }
+    });
+</script>
 
 <?php
 $content = ob_get_clean();

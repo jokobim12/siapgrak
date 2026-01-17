@@ -33,6 +33,7 @@ class TugasController
         $allTugas = $this->db->all('tugas');
         $allPertemuan = $this->db->all('pertemuan');
         $allMatkul = $this->db->find('mata_kuliah', ['mahasiswa_id' => $user['id']]);
+        $semesters = $this->db->find('semester', ['mahasiswa_id' => $user['id']]); // Add this
         $allPengumpulan = $this->db->find('pengumpulan_tugas', ['mahasiswa_id' => $user['id']]);
 
         // Filter and enrich tugas
@@ -46,6 +47,9 @@ class TugasController
         $now = new \DateTime();
 
         foreach ($allTugas as $t) {
+            // Filter out files/archives (only show Todo items)
+            if (!empty($t['tipe_file'])) continue;
+
             if (!in_array($t['pertemuan_id'], $userPertemuanIds)) continue;
 
             $pertemuan = null;
@@ -72,10 +76,15 @@ class TugasController
                 }
             }
 
-            $deadline = new \DateTime($t['deadline']);
-            $diff = $now->diff($deadline);
-            $sisa_hari = ($now > $deadline) ? -$diff->days : $diff->days;
-            $isLate = ($sisa_hari < 0 && !$submission);
+            if (!empty($t['deadline'])) {
+                $deadline = new \DateTime($t['deadline']);
+                $diff = $now->diff($deadline);
+                $sisa_hari = ($now > $deadline) ? -$diff->days : $diff->days;
+                $isLate = ($sisa_hari < 0 && !$submission);
+            } else {
+                $sisa_hari = 0;
+                $isLate = false;
+            }
 
             $t['nomor_pertemuan'] = $pertemuan['nomor_pertemuan'];
             $t['nama_mk'] = $mk['nama_mk'];
@@ -106,6 +115,7 @@ class TugasController
 
         // Recalculate full stats
         foreach ($allTugas as $t) {
+            if (!empty($t['tipe_file'])) continue;
             if (!in_array($t['pertemuan_id'], $userPertemuanIds)) continue;
 
             $submission = null;
@@ -116,9 +126,11 @@ class TugasController
                 }
             }
 
-            $deadline = new \DateTime($t['deadline']);
-            $diff = $now->diff($deadline);
-            $isLate = ($now > $deadline);
+            $isLate = false;
+            if (!empty($t['deadline'])) {
+                $deadline = new \DateTime($t['deadline']);
+                $isLate = ($now > $deadline);
+            }
 
             $stats['total']++;
             if ($submission) {
@@ -134,14 +146,17 @@ class TugasController
 
         // Sort
         usort($tugasList, function ($a, $b) {
-            return strtotime($a['deadline']) - strtotime($b['deadline']);
+            $da = !empty($a['deadline']) ? strtotime($a['deadline']) : 0;
+            $db = !empty($b['deadline']) ? strtotime($b['deadline']) : 0;
+            return $da - $db;
         });
 
         view('tugas.index', [
             'tugasList' => $tugasList,
             'stats' => $stats,
             'filter' => $filter,
-            'allMatkul' => $allMatkul
+            'allMatkul' => $allMatkul,
+            'semesters' => $semesters
         ]);
     }
 
@@ -171,8 +186,12 @@ class TugasController
                 $tugas['nama_mk'] = $mk['nama_mk'];
                 $tugas['semester_nama'] = $sem ? $sem['nama'] : '';
 
-                $diff = (new \DateTime())->diff(new \DateTime($tugas['deadline']));
-                $tugas['sisa_hari'] = ((new \DateTime()) > (new \DateTime($tugas['deadline']))) ? -$diff->days : $diff->days;
+                if (!empty($tugas['deadline'])) {
+                    $diff = (new \DateTime())->diff(new \DateTime($tugas['deadline']));
+                    $tugas['sisa_hari'] = ((new \DateTime()) > (new \DateTime($tugas['deadline']))) ? -$diff->days : $diff->days;
+                } else {
+                    $tugas['sisa_hari'] = 0;
+                }
             } else {
                 $tugas = null;
             }
@@ -352,13 +371,27 @@ class TugasController
         $tokens = $authController->getTokens($user['id']);
         if ($tokens && isset($tugas['file_gdrive_id'])) {
             $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
-            $driveHelper->deleteFile($tugas['file_gdrive_id']);
+            $res = $driveHelper->deleteFile($tugas['file_gdrive_id']);
+
+            if (!$res['success']) {
+                if (strpos($res['error'], 'not initialized') !== false) {
+                    // Biarkan user tau token habis, tapi tetap hapus dari DB agar tidak nyangkut
+                    flash('warning', 'Tugas dihapus dari sistem, namun gagal dihapus dari Google Drive (Sesi habis). Silakan Logout & Login.');
+                }
+            }
         }
 
         $this->db->delete('tugas', $id);
 
         flash('success', 'Tugas berhasil dihapus');
-        redirect("pertemuan?id=" . $tugas['pertemuan_id']);
+
+        // Logic redirect: Jika ini tugas file (Materi/Arsip), balik ke pertemuan.
+        // Jika ini Todo (tipe_file null), balik ke menu Tugas.
+        if (!empty($tugas['tipe_file'])) {
+            redirect("pertemuan?id=" . $tugas['pertemuan_id']);
+        } else {
+            redirect("tugas");
+        }
     }
     public function update()
     {
@@ -406,7 +439,7 @@ class TugasController
         try {
             $user = auth();
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                throw new Exception('Invalid request method');
+                throw new \Exception('Invalid request method');
             }
 
             $pertemuanId = $_POST['pertemuan_id'] ?? null;
@@ -414,12 +447,12 @@ class TugasController
             $deskripsi = sanitize($_POST['deskripsi'] ?? '');
 
             if (!$pertemuanId || empty($_FILES['file']['name'])) {
-                throw new Exception('Data tidak lengkap. Pertemuan ID dan File wajib diisi.');
+                throw new \Exception('Data tidak lengkap. Pertemuan ID dan File wajib diisi.');
             }
 
             $pertemuan = $this->db->findById('pertemuan', $pertemuanId);
             if (!$pertemuan) {
-                throw new Exception('Pertemuan tidak ditemukan');
+                throw new \Exception('Pertemuan tidak ditemukan');
             }
 
             // Google Drive Logic
@@ -427,7 +460,7 @@ class TugasController
             $tokens = $authController->getTokens($user['id']);
 
             if (!$tokens) {
-                throw new Exception('Token autentikasi Google tidak valid/kadaluarsa. Login ulang.');
+                throw new \Exception('Token autentikasi Google tidak valid/kadaluarsa. Login ulang.');
             }
 
             $driveHelper = new GoogleDriveHelper($tokens['access_token'], $tokens['refresh_token']);
@@ -442,22 +475,37 @@ class TugasController
                 // Let's implement full rebuild for safety.
 
                 $mkInfo = $this->db->findById('mata_kuliah', $pertemuan['mata_kuliah_id']);
-                if (!$mkInfo) throw new Exception('MK tidak ditemukan');
+                if (!$mkInfo) throw new \Exception('MK tidak ditemukan');
 
                 $sem = $this->db->findById('semester', $mkInfo['semester_id']);
                 $semesterName = $sem ? $sem['nama'] : 'Semester ???';
 
                 // Root -> Semester
                 $semFolder = $driveHelper->findOrCreateFolder($semesterName, null);
-                if (!$semFolder['success']) throw new Exception('Gagal folder Semester: ' . $semFolder['error']);
+                if (!$semFolder['success']) {
+                    if (strpos($semFolder['error'], 'not initialized') !== false) {
+                        throw new \Exception('Sesi Google berakhir. Silakan Logout dan Login kembali.');
+                    }
+                    throw new \Exception('Gagal folder Semester: ' . $semFolder['error']);
+                }
 
                 // Semester -> MK
                 $mkFolder = $driveHelper->findOrCreateFolder($mkInfo['nama_mk'], $semFolder['id']);
-                if (!$mkFolder['success']) throw new Exception('Gagal folder MK: ' . $mkFolder['error']);
+                if (!$mkFolder['success']) {
+                    if (strpos($mkFolder['error'], 'not initialized') !== false) {
+                        throw new \Exception('Sesi Google berakhir. Silakan Logout dan Login kembali.');
+                    }
+                    throw new \Exception('Gagal folder MK: ' . $mkFolder['error']);
+                }
 
                 // MK -> Pertemuan
                 $pFolder = $driveHelper->findOrCreateFolder("Pertemuan " . $pertemuan['nomor_pertemuan'], $mkFolder['id']);
-                if (!$pFolder['success']) throw new Exception('Gagal folder Pertemuan: ' . $pFolder['error']);
+                if (!$pFolder['success']) {
+                    if (strpos($pFolder['error'], 'not initialized') !== false) {
+                        throw new \Exception('Sesi Google berakhir. Silakan Logout dan Login kembali.');
+                    }
+                    throw new \Exception('Gagal folder Pertemuan: ' . $pFolder['error']);
+                }
 
                 $pertemuanFolderId = $pFolder['id'];
                 $this->db->update('pertemuan', $pertemuanId, ['folder_gdrive_id' => $pertemuanFolderId]);
@@ -466,13 +514,19 @@ class TugasController
             // 2. Buat subfolder "Tugas" di dalam folder Pertemuan
             $tugasFolder = $driveHelper->findOrCreateFolder('Tugas', $pertemuanFolderId);
             if (!$tugasFolder['success']) {
-                throw new Exception('Gagal membuat folder Tugas: ' . $tugasFolder['error']);
+                if (strpos($tugasFolder['error'], 'not initialized') !== false) {
+                    throw new \Exception('Sesi Google berakhir. Silakan Logout dan Login kembali.');
+                }
+                throw new \Exception('Gagal membuat folder Tugas: ' . $tugasFolder['error']);
             }
 
             // 3. Upload File ke folder Tugas
             $uploadResult = $driveHelper->uploadFromPost('file', $tugasFolder['id']);
             if (!$uploadResult['success']) {
-                throw new Exception('Gagal upload ke Drive: ' . $uploadResult['error']);
+                if (strpos($uploadResult['error'], 'not initialized') !== false) {
+                    throw new \Exception('Sesi Google berakhir. Silakan Logout dan Login kembali.');
+                }
+                throw new \Exception('Gagal upload ke Drive: ' . $uploadResult['error']);
             }
 
             // 4. Simpan ke Database
@@ -493,7 +547,7 @@ class TugasController
             ]);
 
             echo json_encode(['success' => true, 'message' => 'File tugas berhasil diupload']);
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
         exit;

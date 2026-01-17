@@ -28,7 +28,8 @@ define('DB_PASSWORD', $_ENV['DB_PASSWORD'] ?? '1234');
 define('GOOGLE_CLIENT_ID', $_ENV['GOOGLE_CLIENT_ID'] ?? '');
 define('GOOGLE_CLIENT_SECRET', $_ENV['GOOGLE_CLIENT_SECRET'] ?? '');
 define('GOOGLE_REDIRECT_URI', $_ENV['GOOGLE_REDIRECT_URI'] ?? APP_URL . '/auth/callback');
-
+// Fonnte Configuration
+define('FONNTE_TOKEN', $_ENV['FONNTE_TOKEN'] ?? '');
 // Session Configuration
 define('SESSION_LIFETIME', intval($_ENV['SESSION_LIFETIME'] ?? 120));
 
@@ -135,11 +136,13 @@ function sanitize($input)
 
 function formatDate($date, $format = 'd M Y')
 {
+    if (empty($date)) return '-';
     return date($format, strtotime($date));
 }
 
 function formatDateTime($date, $format = 'd M Y H:i')
 {
+    if (empty($date)) return '-';
     return date($format, strtotime($date));
 }
 

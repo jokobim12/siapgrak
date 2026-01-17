@@ -3,11 +3,11 @@
         "mahasiswa_id": 1,
         "mata_kuliah_id": 1,
         "pertemuan_selesai": 18,
-        "materi_selesai": 6,
+        "materi_selesai": 7,
         "id": 1,
         "created_at": "2026-01-17 15:28:47",
         "last_accessed_at": "2026-01-17 15:45:26",
-        "updated_at": "2026-01-17 17:52:16"
+        "updated_at": "2026-01-17 18:16:38"
     },
     {
         "mahasiswa_id": 1,
@@ -24,5 +24,73 @@
         "materi_selesai": 0,
         "id": 3,
         "created_at": "2026-01-17 16:20:48"
+    },
+    {
+        "mahasiswa_id": 1,
+        "mata_kuliah_id": 2,
+        "pertemuan_selesai": 5,
+        "materi_selesai": 1,
+        "id": 4,
+        "created_at": "2026-01-17 18:18:34",
+        "last_accessed_at": "2026-01-17 18:57:04",
+        "updated_at": "2026-01-17 18:57:04"
+    },
+    {
+        "mahasiswa_id": 1,
+        "mata_kuliah_id": 1,
+        "pertemuan_selesai": 0,
+        "materi_selesai": 0,
+        "id": 5,
+        "created_at": "2026-01-17 18:34:58"
+    },
+    {
+        "mahasiswa_id": 1,
+        "mata_kuliah_id": 2,
+        "pertemuan_selesai": 0,
+        "materi_selesai": 0,
+        "id": 6,
+        "created_at": "2026-01-17 18:35:14"
+    },
+    {
+        "mahasiswa_id": 1,
+        "mata_kuliah_id": 3,
+        "pertemuan_selesai": 0,
+        "materi_selesai": 0,
+        "id": 7,
+        "created_at": "2026-01-17 18:35:33"
+    },
+    {
+        "mahasiswa_id": 1,
+        "mata_kuliah_id": 4,
+        "pertemuan_selesai": 0,
+        "materi_selesai": 0,
+        "id": 8,
+        "created_at": "2026-01-17 18:35:47"
+    },
+    {
+        "mahasiswa_id": 1,
+        "mata_kuliah_id": 5,
+        "pertemuan_selesai": 0,
+        "materi_selesai": 0,
+        "id": 9,
+        "created_at": "2026-01-17 18:36:00"
+    },
+    {
+        "mahasiswa_id": 1,
+        "mata_kuliah_id": 6,
+        "pertemuan_selesai": 0,
+        "materi_selesai": 0,
+        "id": 10,
+        "created_at": "2026-01-17 18:36:13"
+    },
+    {
+        "mahasiswa_id": 1,
+        "mata_kuliah_id": 7,
+        "pertemuan_selesai": 4,
+        "materi_selesai": 1,
+        "id": 11,
+        "created_at": "2026-01-17 18:36:26",
+        "last_accessed_at": "2026-01-17 19:41:59",
+        "updated_at": "2026-01-17 19:41:59"
     }
 ]

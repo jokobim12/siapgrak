@@ -38,6 +38,8 @@ class JadwalController
                 foreach ($allMatkul as $mk) {
                     if ($mk['id'] == $j['mata_kuliah_id']) {
                         $j['nama_mk'] = $mk['nama_mk'];
+                        $j['dosen'] = $mk['dosen'] ?? '-';
+                        $j['korti'] = $mk['korti'] ?? '-'; // Fetch Korti
                         break;
                     }
                 }
@@ -71,5 +73,73 @@ class JadwalController
         view('jadwal.index', [
             'jadwalByDay' => $jadwalByDay
         ]);
+    }
+    public function create()
+    {
+        $user = auth();
+        // Get user's MK for dropdown
+        $matkul = $this->db->find('mata_kuliah', ['mahasiswa_id' => $user['id']]);
+        // Get semesters for filter
+        $semesters = $this->db->find('semester', ['mahasiswa_id' => $user['id']]);
+        view('jadwal.create', ['matkul' => $matkul, 'semesters' => $semesters]);
+    }
+
+    public function store()
+    {
+        $user = auth();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('jadwal');
+        }
+
+        $mata_kuliah_id = $_POST['mata_kuliah_id'] ?? null;
+        $hari = $_POST['hari'] ?? '';
+        $jam_mulai = $_POST['jam_mulai'] ?? '';
+        $jam_selesai = $_POST['jam_selesai'] ?? '';
+        $ruangan = sanitize($_POST['ruangan'] ?? '');
+
+        // Optional: Update MK detail like Dosen and Korti if provided
+        $dosen = sanitize($_POST['dosen'] ?? '');
+        $korti = sanitize($_POST['korti'] ?? '');
+
+        if (!$mata_kuliah_id || !$hari || !$jam_mulai || !$jam_selesai) {
+            flash('error', 'Data wajib diisi');
+            redirect('jadwal/tambah');
+        }
+
+        // Save Jadwal
+        $this->db->insert('jadwal', [
+            'mata_kuliah_id' => $mata_kuliah_id,
+            'hari' => $hari,
+            'jam_mulai' => $jam_mulai,
+            'jam_selesai' => $jam_selesai,
+            'ruangan' => $ruangan
+        ]);
+
+        // Update MK with Dosen and potentially Korti (if we add that column)
+        // Since we are using JSON Database, we can just add keys.
+        // Let's check if MK exists
+        $mk = $this->db->findById('mata_kuliah', $mata_kuliah_id);
+        if ($mk) {
+            $updateData = [];
+            if (!empty($dosen)) $updateData['dosen'] = $dosen;
+            if (!empty($korti)) $updateData['korti'] = $korti;
+
+            if (!empty($updateData)) {
+                $this->db->update('mata_kuliah', $mata_kuliah_id, $updateData);
+            }
+        }
+
+        flash('success', 'Jadwal berhasil ditambahkan');
+        redirect('jadwal');
+    }
+
+    public function delete()
+    {
+        $id = $_POST['id'] ?? null;
+        if ($id) {
+            $this->db->delete('jadwal', $id);
+            flash('success', 'Jadwal dihapus');
+        }
+        redirect('jadwal');
     }
 }

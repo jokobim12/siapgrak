@@ -76,8 +76,15 @@ $routes = [
     'tugas/update' => ['controller' => 'TugasController', 'action' => 'update', 'auth' => true, 'method' => 'POST'],
     'tugas/upload' => ['controller' => 'TugasController', 'action' => 'upload', 'auth' => true, 'method' => 'POST'],
 
+    // Profile
+    'profile' => ['controller' => 'ProfileController', 'action' => 'index', 'auth' => true],
+    'profile/update' => ['controller' => 'ProfileController', 'action' => 'update', 'auth' => true, 'method' => 'POST'],
+
     // Jadwal
     'jadwal' => ['controller' => 'JadwalController', 'action' => 'index', 'auth' => true],
+    'jadwal/tambah' => ['controller' => 'JadwalController', 'action' => 'create', 'auth' => true],
+    'jadwal/simpan' => ['controller' => 'JadwalController', 'action' => 'store', 'auth' => true, 'method' => 'POST'],
+    'jadwal/hapus' => ['controller' => 'JadwalController', 'action' => 'delete', 'auth' => true, 'method' => 'POST'],
 
     // Admin Auth
     'admin/login' => ['controller' => 'AdminAuthController', 'action' => 'login'],

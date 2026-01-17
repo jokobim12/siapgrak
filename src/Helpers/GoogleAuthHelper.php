@@ -122,23 +122,47 @@ class GoogleAuthHelper
 
     /**
      * Validasi email mahasiswa Politala
-     * Format: 2401301001@mhs.politala.ac.id
+     * Format: xxx@mhs.politala.ac.id (nama atau NIM)
      */
-    public function validateMahasiswaEmail($email)
+    public function validateMahasiswaEmail($email, $nama = '')
     {
-        // Pattern: 10 digit NIM + @mhs.politala.ac.id
-        $pattern = '/^(\d{10}).*@mhs\.politala\.ac\.id$/i';
+        // Cek apakah email berakhiran @mhs.politala.ac.id
+        if (!preg_match('/@mhs\.politala\.ac\.id$/i', $email)) {
+            return [
+                'valid' => false,
+                'nim' => null
+            ];
+        }
 
-        if (preg_match($pattern, $email, $matches)) {
+        // Coba ekstrak NIM dari awal email (jika format 2401301001@mhs.politala.ac.id)
+        if (preg_match('/^(\d{10})/', $email, $matches)) {
             return [
                 'valid' => true,
                 'nim' => $matches[1]
             ];
         }
 
+        // Coba ekstrak NIM dari nama profil Google (format: "2401301001 Joko Bimantaro")
+        if (preg_match('/^(\d{10})\s/', $nama, $matches)) {
+            return [
+                'valid' => true,
+                'nim' => $matches[1]
+            ];
+        }
+
+        // Coba ekstrak NIM dari nama profil Google (format: "2401301001Joko..." tanpa spasi)
+        if (preg_match('/^(\d{10})/', $nama, $matches)) {
+            return [
+                'valid' => true,
+                'nim' => $matches[1]
+            ];
+        }
+
+        // Email valid tapi NIM tidak ditemukan - akan diminta input manual
         return [
-            'valid' => false,
-            'nim' => null
+            'valid' => true,
+            'nim' => null,
+            'need_nim' => true
         ];
     }
 
@@ -147,7 +171,7 @@ class GoogleAuthHelper
      */
     public function extractStudentInfo($email, $nama)
     {
-        $validation = $this->validateMahasiswaEmail($email);
+        $validation = $this->validateMahasiswaEmail($email, $nama);
 
         if (!$validation['valid']) {
             return [
@@ -157,13 +181,39 @@ class GoogleAuthHelper
         }
 
         $nim = $validation['nim'];
+
+        // Jika NIM tidak ditemukan, coba ekstrak dari nama lagi dengan berbagai format
+        if (!$nim) {
+            // Format: "2401301001 Joko Bimantaro" atau "2401301001Joko Bimantaro"
+            if (preg_match('/(\d{10})/', $nama, $matches)) {
+                $nim = $matches[1];
+            }
+        }
+
+        // Jika masih tidak ketemu, minta input manual (untuk sementara pakai placeholder)
+        if (!$nim) {
+            return [
+                'success' => false,
+                'error' => 'NIM tidak dapat diekstrak dari profil. Silakan hubungi admin untuk registrasi manual.',
+                'need_nim' => true,
+                'email' => $email,
+                'nama' => $nama
+            ];
+        }
+
         $angkatan = 2000 + intval(substr($nim, 0, 2));
         $semester = hitungSemester($nim);
+
+        // Hapus NIM dari nama jika ada
+        $namaBersih = preg_replace('/^\d{10}\s*/', '', $nama);
+        if (empty(trim($namaBersih))) {
+            $namaBersih = $nama;
+        }
 
         return [
             'success' => true,
             'nim' => $nim,
-            'nama' => $nama,
+            'nama' => $namaBersih,
             'email' => $email,
             'angkatan' => $angkatan,
             'semester' => $semester

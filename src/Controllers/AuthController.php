@@ -76,6 +76,19 @@ class AuthController
         );
 
         if (!$studentInfo['success']) {
+            // Jika butuh NIM manual, simpan data sementara dan redirect ke form input NIM
+            if (isset($studentInfo['need_nim']) && $studentInfo['need_nim']) {
+                $_SESSION['pending_registration'] = [
+                    'email' => $googleUser['email'],
+                    'nama' => $googleUser['nama'],
+                    'foto' => $googleUser['foto'],
+                    'google_id' => $googleUser['google_id'],
+                    'token' => $tokenResult['token'],
+                    'refresh_token' => $tokenResult['refresh_token'],
+                    'expires_in' => $tokenResult['expires_in']
+                ];
+                redirect('register-nim');
+            }
             flash('error', $studentInfo['error']);
             redirect('login');
         }
@@ -184,5 +197,97 @@ class AuthController
             'refresh_token' => $mahasiswa['refresh_token'],
             'expires_at' => $mahasiswa['token_expires_at']
         ];
+    }
+
+    /**
+     * Halaman input NIM manual
+     */
+    public function registerNim()
+    {
+        // Cek apakah ada pending registration
+        if (!isset($_SESSION['pending_registration'])) {
+            redirect('login');
+        }
+
+        $pending = $_SESSION['pending_registration'];
+
+        // Handle form submission
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $nim = sanitize($_POST['nim'] ?? '');
+
+            // Validasi NIM (harus 10 digit)
+            if (!preg_match('/^\d{10}$/', $nim)) {
+                flash('error', 'NIM harus 10 digit angka');
+                view('auth.register_nim', ['pending' => $pending]);
+                return;
+            }
+
+            // Hitung angkatan dan semester
+            $angkatan = 2000 + intval(substr($nim, 0, 2));
+            $semester = hitungSemester($nim);
+
+            // Cek apakah NIM sudah terdaftar
+            $existing = $this->db->fetch("SELECT id FROM mahasiswa WHERE nim = ?", [$nim]);
+            if ($existing) {
+                flash('error', 'NIM sudah terdaftar. Silakan hubungi admin jika ini adalah NIM Anda.');
+                view('auth.register_nim', ['pending' => $pending]);
+                return;
+            }
+
+            // Buat mahasiswa baru
+            $mahasiswaId = $this->db->insert('mahasiswa', [
+                'nim' => $nim,
+                'nama' => $pending['nama'],
+                'email' => $pending['email'],
+                'google_id' => $pending['google_id'],
+                'foto' => $pending['foto'],
+                'angkatan' => $angkatan,
+                'semester_aktif' => $semester,
+                'access_token' => json_encode($pending['token']),
+                'refresh_token' => $pending['refresh_token'],
+                'token_expires_at' => date('Y-m-d H:i:s', time() + $pending['expires_in'])
+            ]);
+
+            // Buat folder Google Drive
+            $driveHelper = new GoogleDriveHelper($pending['token'], $pending['refresh_token']);
+            $rootFolder = $driveHelper->createRootFolder($pending['nama']);
+
+            if ($rootFolder['success']) {
+                $this->db->update('mahasiswa', [
+                    'gdrive_folder_id' => $rootFolder['id']
+                ], 'id = ?', [$mahasiswaId]);
+            }
+
+            $mahasiswa = $this->db->fetch("SELECT * FROM mahasiswa WHERE id = ?", [$mahasiswaId]);
+
+            // Buat notifikasi selamat datang
+            $this->db->insert('notifikasi', [
+                'mahasiswa_id' => $mahasiswaId,
+                'judul' => 'Selamat Datang di SIAPGRAK',
+                'pesan' => 'Akun Anda telah berhasil dibuat. Mulai organisasikan materi kuliah Anda sekarang!',
+                'tipe' => 'success',
+                'link' => '/dashboard'
+            ]);
+
+            // Clear pending registration
+            unset($_SESSION['pending_registration']);
+
+            // Set session
+            $_SESSION['user'] = [
+                'id' => $mahasiswa['id'],
+                'nim' => $mahasiswa['nim'],
+                'nama' => $mahasiswa['nama'],
+                'email' => $mahasiswa['email'],
+                'foto' => $mahasiswa['foto'],
+                'angkatan' => $mahasiswa['angkatan'],
+                'semester_aktif' => $mahasiswa['semester_aktif'],
+                'gdrive_folder_id' => $mahasiswa['gdrive_folder_id']
+            ];
+
+            flash('success', 'Registrasi berhasil! Selamat datang, ' . $mahasiswa['nama']);
+            redirect('dashboard');
+        }
+
+        view('auth.register_nim', ['pending' => $pending]);
     }
 }

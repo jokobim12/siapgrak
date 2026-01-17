@@ -44,6 +44,7 @@ $routes = [
     'login' => ['controller' => 'AuthController', 'action' => 'login'],
     'auth/callback' => ['controller' => 'AuthController', 'action' => 'callback'],
     'logout' => ['controller' => 'AuthController', 'action' => 'logout'],
+    'register-nim' => ['controller' => 'AuthController', 'action' => 'registerNim'],
 
     // Dashboard
     'dashboard' => ['controller' => 'DashboardController', 'action' => 'index', 'auth' => true],
@@ -67,6 +68,18 @@ $routes = [
 
     // Jadwal
     'jadwal' => ['controller' => 'JadwalController', 'action' => 'index', 'auth' => true],
+
+    // Admin Auth
+    'admin/login' => ['controller' => 'AdminAuthController', 'action' => 'login'],
+
+    // Admin Panel
+    'admin/dashboard' => ['controller' => 'AdminController', 'action' => 'dashboard', 'admin' => true],
+    'admin/semester' => ['controller' => 'AdminController', 'action' => 'semester', 'admin' => true],
+    'admin/kelas' => ['controller' => 'AdminController', 'action' => 'kelas', 'admin' => true],
+    'admin/mata-kuliah' => ['controller' => 'AdminController', 'action' => 'mataKuliah', 'admin' => true],
+    'admin/jadwal' => ['controller' => 'AdminController', 'action' => 'jadwal', 'admin' => true],
+    'admin/kelas-mahasiswa' => ['controller' => 'AdminController', 'action' => 'kelasMahasiswa', 'admin' => true],
+    'admin/logout' => ['controller' => 'AdminController', 'action' => 'logout', 'admin' => true],
 ];
 
 // Handle routing
@@ -83,6 +96,12 @@ if ($route) {
     if (isset($route['auth']) && $route['auth'] && !isLoggedIn()) {
         flash('error', 'Silakan login terlebih dahulu');
         redirect('login');
+    }
+
+    // Check admin authentication
+    if (isset($route['admin']) && $route['admin'] && !isset($_SESSION['admin'])) {
+        flash('error', 'Silakan login sebagai admin');
+        redirect('admin/login');
     }
 
     // Redirect logged in users from login page

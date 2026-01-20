@@ -40,7 +40,9 @@ class AdminController
 
         $allMahasiswa = $this->db->all('mahasiswa');
         usort($allMahasiswa, function ($a, $b) {
-            return strtotime($b['created_at']) - strtotime($a['created_at']);
+            $timeA = isset($a['created_at']) ? strtotime($a['created_at']) : 0;
+            $timeB = isset($b['created_at']) ? strtotime($b['created_at']) : 0;
+            return $timeB - $timeA;
         });
         $recentMahasiswa = array_slice($allMahasiswa, 0, 5);
 

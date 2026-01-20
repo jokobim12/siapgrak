@@ -43,17 +43,17 @@ ob_start();
                 <tbody>
                     <?php foreach ($recentMahasiswa as $mhs): ?>
                         <tr>
-                            <td class="font-mono"><?= $mhs['nim'] ?></td>
+                            <td class="font-mono"><?= $mhs['nim'] ?? '-' ?></td>
                             <td>
                                 <div class="flex items-center gap-2">
-                                    <img src="<?= $mhs['foto'] ?: 'https://ui-avatars.com/api/?name=' . urlencode($mhs['nama']) ?>"
+                                    <img src="<?= ($mhs['foto'] ?? null) ?: 'https://ui-avatars.com/api/?name=' . urlencode($mhs['nama'] ?? 'User') ?>"
                                         class="w-8 h-8 rounded-full" alt="">
-                                    <?= $mhs['nama'] ?>
+                                    <?= $mhs['nama'] ?? '-' ?>
                                 </div>
                             </td>
-                            <td class="text-gray-500"><?= $mhs['email'] ?></td>
-                            <td><?= $mhs['angkatan'] ?></td>
-                            <td class="text-gray-500"><?= formatDate($mhs['created_at']) ?></td>
+                            <td class="text-gray-500"><?= $mhs['email'] ?? '-' ?></td>
+                            <td><?= $mhs['angkatan'] ?? '-' ?></td>
+                            <td class="text-gray-500"><?= isset($mhs['created_at']) ? formatDate($mhs['created_at']) : '-' ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

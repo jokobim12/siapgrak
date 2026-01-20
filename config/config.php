@@ -60,7 +60,14 @@ date_default_timezone_set('Asia/Makassar');
 // Helper functions
 function base_url($path = '')
 {
-    return rtrim(APP_URL, '/') . '/' . ltrim($path, '/');
+    $url = APP_URL;
+    // Force HTTPS if currently on HTTPS
+    if ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ||
+        (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+    ) {
+        $url = str_replace('http://', 'https://', $url);
+    }
+    return rtrim($url, '/') . '/' . ltrim($path, '/');
 }
 
 function asset($path)

@@ -54,6 +54,34 @@ $currentPage = $_SERVER['REQUEST_URI'];
                 transform: translateX(0);
             }
         }
+
+        /* Fallback: Ensure sidebar nav is always vertical */
+        #sidebar nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        #sidebar nav a.nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            color: #4b5563;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        #sidebar nav a.nav-item:hover,
+        #sidebar nav a.nav-item.active {
+            background-color: #eff6ff;
+            color: #2563eb;
+        }
+
+        #sidebar nav a.nav-item.active {
+            font-weight: 500;
+        }
     </style>
 </head>
 
